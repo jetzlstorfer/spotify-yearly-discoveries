@@ -44,13 +44,13 @@ func main() {
 
 	var playlistsToConsider []spotify.SimplePlaylist
 
-	var totalcount int
+	var totalPlaylists int
 	for p := 1; ; p++ {
 
 		opt := spotify.Options{Limit: &limit, Offset: &offset}
 
 		page, err := client.CurrentUsersPlaylistsOpt(&opt)
-		totalcount = page.Total
+		totalPlaylists = page.Total
 		if err != nil {
 			log.Fatalf("couldn't get playlists: %v", err)
 		}
@@ -70,39 +70,82 @@ func main() {
 		}
 	}
 
-	log.Println("Totally found playlists: " + strconv.Itoa(totalcount))
+	log.Println("Totally found playlists: " + strconv.Itoa(totalPlaylists))
 
 	log.Println("Number of playlists with " + year + " in title: " + strconv.Itoa(len(playlistsToConsider)))
 	var yearlyDiscovery []spotify.ID
+	totalAdded := 0
 	for _, playlist := range playlistsToConsider {
-		log.Println("Scaning playlist: " + playlist.Name)
+		//	log.Println("Scaning playlist: " + playlist.Name)
 		// tracks := playlist.Tracks
-		page, _ := client.GetPlaylistTracks(playlist.ID)
 
-		for _, track := range page.Tracks {
-
+		page, _ := client.GetPlaylistTracks(playlist.ID) // client.GetPlaylistTracks("37i9dQZF1EM7kiO6eeKyiv") //client.GetPlaylistTracks(playlist.ID)
+		trackLimit := 50
+		var tracksToCheck []spotify.ID
+		fmt.Println(len(page.Tracks))
+		for i, track := range page.Tracks {
+			fmt.Println("i=" + strconv.Itoa(i))
 			// check if track is from YEAR
 			if trackIsFromYear((track)) {
+
 				log.Println("Song matching " + year + " found: " + track.Track.String())
+
+				tracksToCheck = append(tracksToCheck, track.Track.ID)
+				log.Println("size of collection of tracks to check: " + strconv.Itoa(len(tracksToCheck)))
+
+				log.Println("i=" + strconv.Itoa(i) + ", len(page.Tracks)=" + strconv.Itoa(len(page.Tracks)))
+
+				if len(tracksToCheck) >= trackLimit {
+					// check if song is added to users library
+					log.Println("size of collection of tracks to check that is added: " + strconv.Itoa(len(tracksToCheck)))
+					isAdded, err := client.UserHasTracks(tracksToCheck...)
+					if err != nil {
+						log.Fatalln(err)
+					}
+					for j, added := range isAdded {
+
+						if added {
+							log.Println("song was saved to users library, saving it to collection")
+							totalAdded++
+							// save it to be added to yearly discovery playlist
+							yearlyDiscovery = append(yearlyDiscovery, tracksToCheck[j])
+						} else {
+							log.Println("song not saved to users library, skipping it")
+						}
+					}
+					tracksToCheck = nil
+
+				}
+
+			}
+			if i+1 >= len(page.Tracks) {
 				// check if song is added to users library
-				isAdded, err := client.UserHasTracks(track.Track.ID)
+				log.Println("size of collection of tracks to check that is added: " + strconv.Itoa(len(tracksToCheck)))
+				isAdded, err := client.UserHasTracks(tracksToCheck...)
 				if err != nil {
 					log.Fatalln(err)
 				}
-				if isAdded[0] {
-					log.Println("song was saved to users library, saving it to collection")
-					// save it to be added to yearly discovery playlist
-					yearlyDiscovery = append(yearlyDiscovery, track.Track.ID)
-				} else {
-					log.Println("song not saved to users library, skipping it")
+				for j, added := range isAdded {
+
+					if added {
+						log.Println("song was saved to users library, saving it to collection")
+						totalAdded++
+						// save it to be added to yearly discovery playlist
+						yearlyDiscovery = append(yearlyDiscovery, tracksToCheck[j])
+					} else {
+						log.Println("song not saved to users library, skipping it")
+					}
 				}
+				tracksToCheck = nil
+
 			}
 
 		}
-		//for _, track := range
+
 	}
 
 	log.Println("Songs discovered: " + strconv.Itoa(len(yearlyDiscovery)))
+	log.Println(totalAdded)
 
 	// removing duplicate values
 	yearlyDiscovery = removeDuplicateValues(yearlyDiscovery)
