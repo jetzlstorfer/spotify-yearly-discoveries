@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/pkg/browser"
 	"github.com/zmb3/spotify"
@@ -13,10 +14,11 @@ import (
 
 const redirectURI = "http://localhost:8888/callback"
 const autologin = false
-const tokenFile = "mytoken.txt"
+
+var tokenFile = os.Getenv("TOKEN_FILE")
 
 var (
-	auth  = spotify.NewAuthenticator(redirectURI, spotify.ScopePlaylistReadPrivate, spotify.ScopePlaylistModifyPrivate, spotify.ScopeUserLibraryRead)
+	auth  = spotify.NewAuthenticator(redirectURI, spotify.ScopePlaylistReadPrivate, spotify.ScopePlaylistModifyPrivate, spotify.ScopePlaylistModifyPublic, spotify.ScopeUserLibraryRead)
 	ch    = make(chan *spotify.Client)
 	state = "myCrazyState"
 )
