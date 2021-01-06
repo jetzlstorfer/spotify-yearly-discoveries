@@ -193,6 +193,9 @@ func getAddedTracks(client spotify.Client, tracksToCheck []spotify.ID) []spotify
 	var yearlyDiscovery []spotify.ID
 	// check if song is added to users library
 	log.Println("size of collection of tracks to check that is added: " + strconv.Itoa(len(tracksToCheck)))
+	if len(tracksToCheck) == 0 {
+		return nil
+	}
 	isAdded, err := client.UserHasTracks(tracksToCheck...)
 	if err != nil {
 		log.Fatalln(err)
