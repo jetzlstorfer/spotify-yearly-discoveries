@@ -92,7 +92,7 @@ func getPlaylistsMatchingCondition(client spotify.Client, condition string) []sp
 
 		for _, playlist := range page.Playlists {
 			if page.Next != "" {
-
+				// TODO
 			}
 			// log.Println(playlist.Name)
 			if strings.Contains(playlist.Name, year) && playlist.ID != spotify.ID(yearsPlaylistID) {
@@ -112,7 +112,7 @@ func getDiscoveredSongsFromPlaylists(client spotify.Client, playlistsToConsider 
 	trackLimit := 50
 
 	for _, playlist := range playlistsToConsider {
-		//	log.Println("Scaning playlist: " + playlist.Name)
+		//	log.Println("Scanning playlist: " + playlist.Name)
 		page, _ := client.GetPlaylistTracks(playlist.ID)
 
 		var tracksToCheck []spotify.ID
@@ -159,7 +159,7 @@ func addTracksToPlaylist(client spotify.Client, tracks []spotify.ID) error {
 	return nil
 }
 
-// helpfer function
+// return min of two numbers
 func min(a, b int) int {
 	if a <= b {
 		return a
