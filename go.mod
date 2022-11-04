@@ -1,9 +1,9 @@
-module github.com/jetzlstorfer/spotify-discovers
+module github.com/jetzlstorfer/spotify-yearly-discoveries
 
 go 1.15
 
 require (
-	github.com/pkg/browser v0.0.0-20201207095918-0426ae3fba23 // indirect
-	github.com/zmb3/spotify v0.0.0-20201231194903-e2d01d9b8bd2 // indirect
-	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
+	github.com/zmb3/spotify v1.3.0
+	golang.org/x/oauth2 v0.1.0
 )
