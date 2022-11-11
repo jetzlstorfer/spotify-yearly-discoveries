@@ -33,7 +33,7 @@ ONLY_LOVED_SONGS= # true if only songs that are added already to your library sh
 YEAR_TO_CHECK=2022
 ```
 
-# Run it
+## Run it
 
 1. Generate and store the token
     ```
@@ -51,7 +51,7 @@ YEAR_TO_CHECK=2022
     ```
     If this command doesn't work, check the playlist manually either in the browser or in your Spotify client.
 
-# Contribute 
+## Contribute 
 Feel free to open a PR or issue.
 
 I'm happy to hear your feedback via [@jetzlstorfer](https://twitter.com/jetzlstorfer).
