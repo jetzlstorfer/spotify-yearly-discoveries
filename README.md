@@ -9,6 +9,8 @@ A lot of "best of 202x" / "top 202x songs" / "best artists 202x" lists contain s
 ## What it's doing
 The program checks all playlists that contain the term `YEAR_TO_CHHECK`,eg. "2022" and in all playlists that match this expression it looks for song that are actually from the year 2022 (or your desired year) _and_ check if they have been added to your library (❤️ in Spotify). If both is true (in this example: song is from 2022 + you like it) it adds the songs to the specified playlist.
 
+Update: in the latest version it is also possible to add songs to the playlist that are not added to your library (🤍 in spotify), use ENV variable `ONLY_LOVED_SONGS`. 
+
 That's it.
 
 Here are my playlists for [2022](https://open.spotify.com/playlist/4AJnjP36kH39gQhgZFL8Ff?si=0f8b2b44f7ca4208), [2021](https://open.spotify.com/playlist/3qDtmE3TrHkjVOow3rM3BY?si=8f212c2c8f0148ee), [2020](https://open.spotify.com/playlist/2D0NidVJbZfnR4wmvYSRiA?si=tVTpL61pRGWypiROYqdeqQ), [2019](https://open.spotify.com/playlist/0uwZfzhqw2G5id1El0oCJE?si=WFk_PEYZSpijQ4gdnYOsXQ).
@@ -18,6 +20,18 @@ Here are my playlists for [2022](https://open.spotify.com/playlist/4AJnjP36kH39g
 - Create a new (empty) playlist for the songs to be stored in
 - Have [Go](https://go.dev/) ready on your machine (I tested with Go 1.15.3+ and latest with 1.19.2)
 - Adapt values in the `env` file and copy or rename it to `.env`
+
+## Environment variables
+
+```
+SPOTIFY_ID= #this is the  spotify client ID you need. register your application here: https://developer.spotify.com/
+SPOTIFY_SECRET= #this is the spotify client secret
+PLAYLIST_ID= #playlist ID in a format like 4AJnjP36kH39gQhgZFL8Ff
+TOKEN_FILE=mytoken.txt 
+LOG_FILE=log.txt
+ONLY_LOVED_SONGS= # true if only songs that are added already to your library should be considered, false otherwise
+YEAR_TO_CHECK=2022
+```
 
 # Run it
 
@@ -37,3 +51,7 @@ Here are my playlists for [2022](https://open.spotify.com/playlist/4AJnjP36kH39g
     ```
     If this command doesn't work, check the playlist manually either in the browser or in your Spotify client.
 
+# Contribute 
+Feel free to open a PR or issue.
+
+I'm happy to hear your feedback via [@jetzlstorfer](https://twitter.com/jetzlstorfer).
