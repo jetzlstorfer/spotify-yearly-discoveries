@@ -13,18 +13,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const redirectURI = "http://localhost:8888/callback"
-
 var year = os.Getenv("YEAR_TO_CHECK")
 var logFile = os.Getenv("LOG_FILE")
 var tokenFile = os.Getenv("TOKEN_FILE")
 var yearsPlaylistID = os.Getenv("PLAYLIST_ID")
-
-var (
-	auth  = spotify.NewAuthenticator(redirectURI, spotify.ScopePlaylistReadPrivate)
-	ch    = make(chan *spotify.Client)
-	state = "abc123"
-)
 
 func main() {
 

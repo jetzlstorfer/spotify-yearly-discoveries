@@ -8,12 +8,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/pkg/browser"
 	"github.com/zmb3/spotify"
 )
 
 const redirectURI = "http://localhost:8888/callback"
-const autologin = false
 
 var tokenFile = os.Getenv("TOKEN_FILE")
 
@@ -34,13 +32,6 @@ func main() {
 
 	url := auth.AuthURL(state)
 	log.Println("Please log in to Spotify by visiting the following page in your browser:", url)
-
-	if autologin {
-		err := browser.OpenURL(url)
-		if err != nil {
-			log.Fatalln(err.Error())
-		}
-	}
 
 	// wait for auth to complete
 	client := <-ch
