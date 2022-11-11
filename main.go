@@ -199,7 +199,12 @@ func getAddedTracks(client spotify.Client, tracksToCheck []spotify.ID) []spotify
 			// save it to be added to yearly discovery playlist
 			yearlyDiscovery = append(yearlyDiscovery, tracksToCheck[j])
 		} else {
-			// log.Println("song not saved to users library, skipping it")
+			if os.Getenv("ONLY_LOVED_SONGS") == "false" {
+				yearlyDiscovery = append(yearlyDiscovery, tracksToCheck[j])
+			} else {
+				// log.Println("song not saved to users library, skipping it")
+			}
+
 		}
 	}
 	return yearlyDiscovery
