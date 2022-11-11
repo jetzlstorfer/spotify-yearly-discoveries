@@ -6,3 +6,6 @@ token:
 
 run:
 	go run main.go
+
+open-browser:
+	python3 -m webbrowser https://open.spotify.com/playlist/$(PLAYLIST_ID)
