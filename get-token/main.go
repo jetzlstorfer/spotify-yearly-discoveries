@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/zmb3/spotify"
+	"github.com/zmb3/spotify/v2"
+	spotifyauth "github.com/zmb3/spotify/v2/auth"
 )
 
 const redirectURI = "http://localhost:8888/callback"
@@ -16,7 +17,7 @@ const redirectURI = "http://localhost:8888/callback"
 var tokenFile = os.Getenv("TOKEN_FILE")
 
 var (
-	auth  = spotify.NewAuthenticator(redirectURI, spotify.ScopePlaylistReadPrivate, spotify.ScopePlaylistModifyPrivate, spotify.ScopePlaylistModifyPublic, spotify.ScopeUserLibraryRead)
+	auth  = spotifyauth.New(spotifyauth.WithRedirectURL(redirectURI), spotifyauth.WithScopes(spotifyauth.ScopePlaylistReadPrivate, spotifyauth.ScopePlaylistModifyPrivate, spotifyauth.ScopePlaylistModifyPublic, spotifyauth.ScopeUserLibraryRead))
 	ch    = make(chan *spotify.Client)
 	state = "myCrazyState"
 )
@@ -28,7 +29,11 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Got request for:", r.URL.String())
 	})
-	go http.ListenAndServe(":8888", nil)
+	go func() {
+		if err := http.ListenAndServe(":8888", nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	url := auth.AuthURL(state)
 	log.Println("Please log in to Spotify by visiting the following page in your browser:", url)
@@ -37,7 +42,7 @@ func main() {
 	client := <-ch
 
 	// use the client to make calls that require authorization
-	user, err := client.CurrentUser()
+	user, err := client.CurrentUser(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +50,7 @@ func main() {
 }
 
 func completeAuth(w http.ResponseWriter, r *http.Request) {
-	tok, err := auth.Token(state, r)
+	tok, err := auth.Token(r.Context(), state, r)
 	if err != nil {
 		http.Error(w, "Couldn't get token", http.StatusForbidden)
 		log.Fatal(err)
@@ -61,13 +66,14 @@ func completeAuth(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("could not marshal token: %v", err)
 	}
 
-	err = ioutil.WriteFile(tokenFile, btys, 0644)
+	err = os.WriteFile(tokenFile, btys, 0644)
 	if err != nil {
 		log.Fatalf("could not write file: %v", err)
 	}
 
 	// use the token to get an authenticated client
-	client := auth.NewClient(tok)
+	httpClient := spotifyauth.New().Client(context.Background(), tok)
+	client := spotify.New(httpClient)
 	fmt.Fprintf(w, "Login Completed!")
-	ch <- &client
+	ch <- client
 }

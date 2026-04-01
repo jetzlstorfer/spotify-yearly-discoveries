@@ -1,15 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/zmb3/spotify"
+	"github.com/zmb3/spotify/v2"
+	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2"
 )
 
@@ -33,14 +34,14 @@ func main() {
 	mw := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(mw)
 
-	client, _ := verifyLogin()
+	ctx := context.Background()
+	client, _ := verifyLogin(ctx)
 
 	// get all playlists that match the YEAR in the playlist title
-	playlistsToConsider := getPlaylistsMatchingCondition(client, year)
+	playlistsToConsider := getPlaylistsMatchingCondition(ctx, client, year)
 	log.Println("Number of playlists with " + year + " in title: " + strconv.Itoa(len(playlistsToConsider)))
 
-	// todo
-	yearlyDiscovery := getDiscoveredSongsFromPlaylists(client, playlistsToConsider)
+	yearlyDiscovery := getDiscoveredSongsFromPlaylists(ctx, client, playlistsToConsider)
 
 	log.Println("Songs discovered: " + strconv.Itoa(len(yearlyDiscovery)))
 
@@ -49,45 +50,39 @@ func main() {
 	log.Println("Songs discovered (unique): " + strconv.Itoa(len(yearlyDiscovery)))
 
 	// empty playlist
-	client.ReplacePlaylistTracks(spotify.ID(yearsPlaylistID))
+	err = client.ReplacePlaylistTracks(ctx, spotify.ID(yearsPlaylistID))
 	if err != nil {
 		log.Fatalln("could not empty playlist: " + err.Error())
 	}
 
 	// add tracks
 	log.Println("adding discovered songs to playlist...")
-	err = addTracksToPlaylist(client, yearlyDiscovery)
+	err = addTracksToPlaylist(ctx, client, yearlyDiscovery)
 	if err != nil {
 		log.Fatalln("Could not add songs to playlist: " + err.Error())
 	}
 
-	updatedPlaylist, err := client.GetPlaylist(spotify.ID(yearsPlaylistID))
+	updatedPlaylist, err := client.GetPlaylist(ctx, spotify.ID(yearsPlaylistID))
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println(strconv.Itoa((updatedPlaylist.Tracks.Total)) + " songs added new playlist")
+	log.Println(strconv.Itoa(int(updatedPlaylist.Tracks.Total)) + " songs added new playlist")
 
 }
 
-func getPlaylistsMatchingCondition(client spotify.Client, condition string) []spotify.SimplePlaylist {
+func getPlaylistsMatchingCondition(ctx context.Context, client *spotify.Client, condition string) []spotify.SimplePlaylist {
 	var offset int = 0
 	var limit int = 50
 	var playlistsToConsider []spotify.SimplePlaylist
 	for p := 1; ; p++ {
 
-		opt := spotify.Options{Limit: &limit, Offset: &offset}
-
-		page, err := client.CurrentUsersPlaylistsOpt(&opt)
+		page, err := client.CurrentUsersPlaylists(ctx, spotify.Limit(limit), spotify.Offset(offset))
 		if err != nil {
 			log.Fatalf("couldn't get playlists: %v", err)
 		}
 
 		for _, playlist := range page.Playlists {
-			if page.Next != "" {
-				// TODO
-			}
-			// log.Println(playlist.Name)
-			if strings.Contains(playlist.Name, year) && playlist.ID != spotify.ID(yearsPlaylistID) {
+			if strings.Contains(playlist.Name, condition) && playlist.ID != spotify.ID(yearsPlaylistID) {
 				playlistsToConsider = append(playlistsToConsider, playlist)
 			}
 		}
@@ -99,13 +94,12 @@ func getPlaylistsMatchingCondition(client spotify.Client, condition string) []sp
 	return playlistsToConsider
 }
 
-func getDiscoveredSongsFromPlaylists(client spotify.Client, playlistsToConsider []spotify.SimplePlaylist) []spotify.ID {
+func getDiscoveredSongsFromPlaylists(ctx context.Context, client *spotify.Client, playlistsToConsider []spotify.SimplePlaylist) []spotify.ID {
 	var yearlyDiscovery []spotify.ID
 	trackLimit := 50
 
 	for _, playlist := range playlistsToConsider {
-		//	log.Println("Scanning playlist: " + playlist.Name)
-		page, _ := client.GetPlaylistTracks(playlist.ID)
+		page, _ := client.GetPlaylistTracks(ctx, playlist.ID)
 
 		var tracksToCheck []spotify.ID
 		for i, track := range page.Tracks {
@@ -119,7 +113,7 @@ func getDiscoveredSongsFromPlaylists(client spotify.Client, playlistsToConsider 
 
 				// if trackLimit is reached, check all songs if they have been added to library and add them to list
 				if len(tracksToCheck) >= trackLimit {
-					yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(client, tracksToCheck)...)
+					yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(ctx, client, tracksToCheck)...)
 					tracksToCheck = nil
 				}
 
@@ -127,7 +121,7 @@ func getDiscoveredSongsFromPlaylists(client spotify.Client, playlistsToConsider 
 			// at the end before checking the next playlist, add all songs to the list
 			if i+1 >= len(page.Tracks) {
 				// add songs that have been added to users library to the list
-				yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(client, tracksToCheck)...)
+				yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(ctx, client, tracksToCheck)...)
 				tracksToCheck = nil
 			}
 
@@ -138,11 +132,11 @@ func getDiscoveredSongsFromPlaylists(client spotify.Client, playlistsToConsider 
 }
 
 // adding songs to playlist, 100 songs each Api call
-func addTracksToPlaylist(client spotify.Client, tracks []spotify.ID) error {
+func addTracksToPlaylist(ctx context.Context, client *spotify.Client, tracks []spotify.ID) error {
 	var limit = 100
 	for i := 0; i < len(tracks); i += limit {
 		tracks := tracks[i:min(i+limit, len(tracks))]
-		_, err := client.AddTracksToPlaylist(spotify.ID(yearsPlaylistID), tracks...)
+		_, err := client.AddTracksToPlaylist(ctx, spotify.ID(yearsPlaylistID), tracks...)
 		if err != nil {
 			log.Fatalln("Could not add songs to playlist: " + err.Error())
 			return err
@@ -151,18 +145,8 @@ func addTracksToPlaylist(client spotify.Client, tracks []spotify.ID) error {
 	return nil
 }
 
-// return min of two numbers
-func min(a, b int) int {
-	if a <= b {
-		return a
-	}
-	return b
-}
-
 func trackIsFromYear(track spotify.PlaylistTrack) bool {
-	// log.Println("ReleaseDate: " + track.Track.Album.ReleaseDate)
 	return strings.Contains(track.Track.Album.ReleaseDate, year)
-	// return false
 }
 
 func removeDuplicateValues(slice []spotify.ID) []spotify.ID {
@@ -181,68 +165,47 @@ func removeDuplicateValues(slice []spotify.ID) []spotify.ID {
 	return list
 }
 
-func getAddedTracks(client spotify.Client, tracksToCheck []spotify.ID) []spotify.ID {
+func getAddedTracks(ctx context.Context, client *spotify.Client, tracksToCheck []spotify.ID) []spotify.ID {
 	var yearlyDiscovery []spotify.ID
 	// check if song is added to users library
 	log.Println("size of collection of tracks to check that is added: " + strconv.Itoa(len(tracksToCheck)))
 	if len(tracksToCheck) == 0 {
 		return nil
 	}
-	isAdded, err := client.UserHasTracks(tracksToCheck...)
+	isAdded, err := client.UserHasTracks(ctx, tracksToCheck...)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	for j, added := range isAdded {
 
 		if added {
-			// log.Println("song was saved to users library, saving it to collection")
-			// save it to be added to yearly discovery playlist
 			yearlyDiscovery = append(yearlyDiscovery, tracksToCheck[j])
 		} else {
 			if os.Getenv("ONLY_LOVED_SONGS") == "false" {
 				yearlyDiscovery = append(yearlyDiscovery, tracksToCheck[j])
-			} else {
-				// log.Println("song not saved to users library, skipping it")
 			}
-
 		}
 	}
 	return yearlyDiscovery
 }
 
-func verifyLogin() (spotify.Client, error) {
+func verifyLogin(ctx context.Context) (*spotify.Client, error) {
 
-	file, err := os.Open(tokenFile)
+	buff, err := os.ReadFile(tokenFile)
 	if err != nil {
-		fmt.Println(err)
-		// return
-	}
-	defer file.Close()
-
-	fileinfo, err := file.Stat()
-	if err != nil {
-		fmt.Println(err)
-		// return nil, err
-	}
-
-	filesize := fileinfo.Size()
-	buffer := make([]byte, filesize)
-
-	_, err = file.Read(buffer)
-	if err != nil {
-		fmt.Println(err)
-		// return nil, err
+		log.Fatalf("could not read token file: %v", err)
 	}
 
 	tok := new(oauth2.Token)
-	if err := json.Unmarshal(buffer, tok); err != nil {
+	if err := json.Unmarshal(buff, tok); err != nil {
 		log.Fatalf("could not unmarshal token: %v", err)
 	}
 
 	// Create a Spotify authenticator with the oauth2 token.
 	// If the token is expired, the oauth2 package will automatically refresh
 	// so the new token is checked against the old one to see if it should be updated.
-	client := spotify.NewAuthenticator("").NewClient(tok)
+	httpClient := spotifyauth.New().Client(ctx, tok)
+	client := spotify.New(httpClient)
 
 	newToken, err := client.Token()
 	if err != nil {
@@ -250,17 +213,17 @@ func verifyLogin() (spotify.Client, error) {
 	}
 	if newToken.AccessToken != tok.AccessToken {
 		log.Println("got refreshed token, saving it")
+		tokenBytes, err := json.Marshal(newToken)
+		if err != nil {
+			log.Fatalf("could not marshal token: %v", err)
+		}
+		if err := os.WriteFile(tokenFile, tokenBytes, 0644); err != nil {
+			log.Fatalf("could not save refreshed token: %v", err)
+		}
 	}
-
-	_, err = json.Marshal(newToken)
-	if err != nil {
-		log.Fatalf("could not marshal token: %v", err)
-	}
-
-	// save new token
 
 	// use the client to make calls that require authorization
-	user, err := client.CurrentUser()
+	user, err := client.CurrentUser(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
