@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -19,6 +20,14 @@ var tokenFile = os.Getenv("TOKEN_FILE")
 var yearsPlaylistID = os.Getenv("PLAYLIST_ID")
 
 func main() {
+	webMode := flag.Bool("web", false, "start the web UI instead of running the batch job")
+	port := flag.String("port", "8080", "port for the web server (only used with -web)")
+	flag.Parse()
+
+	if *webMode {
+		startWebServer(":" + *port)
+		return
+	}
 
 	log.Println("Starting program...")
 

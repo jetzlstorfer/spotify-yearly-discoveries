@@ -1,6 +1,6 @@
 module github.com/jetzlstorfer/spotify-yearly-discoveries
 
-go 1.15
+go 1.21
 
 require (
 	github.com/zmb3/spotify v1.3.0
