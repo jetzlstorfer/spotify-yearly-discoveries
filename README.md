@@ -7,7 +7,7 @@ I wanted to know which songs I've discovered in 2022 and added to my playlists t
 A lot of "best of 202x" / "top 202x songs" / "best artists 202x" lists contain songs that might have received heavy airplay in 202x but are actually not even from 202x but probably 202x-1 or even earlier. This is totally fine. But for myself I wanted to find out which songs I have discovered in 2022 that are _actually_ from 2022.
 
 ## What it's doing
-The program checks all playlists that contain the term `YEAR_TO_CHHECK`,eg. "2022" and in all playlists that match this expression it looks for song that are actually from the year 2022 (or your desired year) _and_ check if they have been added to your library (❤️ in Spotify). If both is true (in this example: song is from 2022 + you like it) it adds the songs to the specified playlist.
+The program checks all playlists that contain the term `YEAR_TO_CHECK`, eg. "2022" and in all playlists that match this expression it looks for song that are actually from the year 2022 (or your desired year) _and_ check if they have been added to your library (❤️ in Spotify). If both is true (in this example: song is from 2022 + you like it) it adds the songs to the specified playlist.
 
 Update: in the latest version it is also possible to add songs to the playlist that are not added to your library (🤍 in spotify), use ENV variable `ONLY_LOVED_SONGS`. 
 
