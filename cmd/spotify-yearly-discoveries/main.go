@@ -81,7 +81,7 @@ updatedPlaylist, err := client.GetPlaylist(ctx, spotify.ID(yearsPlaylistID))
 if err != nil {
 log.Fatalln(err)
 }
-log.Println(strconv.Itoa(int(updatedPlaylist.Tracks.Total)) + " songs added to new playlist")
+log.Println(strconv.Itoa(int(updatedPlaylist.Tracks.Total)) + " songs added to playlist")
 }
 
 func getPlaylistsMatchingCondition(ctx context.Context, client *spotify.Client, condition string) []spotify.SimplePlaylist {
