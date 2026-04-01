@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -28,7 +27,11 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Got request for:", r.URL.String())
 	})
-	go http.ListenAndServe(":8888", nil)
+	go func() {
+		if err := http.ListenAndServe(":8888", nil); err != nil {
+			log.Fatalf("could not start HTTP server: %v", err)
+		}
+	}()
 
 	url := auth.AuthURL(state)
 	log.Println("Please log in to Spotify by visiting the following page in your browser:", url)
@@ -56,12 +59,12 @@ func completeAuth(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("State mismatch: %s != %s\n", st, state)
 	}
 
-	btys, err := json.Marshal(tok)
+	tokenBytes, err := json.Marshal(tok)
 	if err != nil {
 		log.Fatalf("could not marshal token: %v", err)
 	}
 
-	err = ioutil.WriteFile(tokenFile, btys, 0644)
+	err = os.WriteFile(tokenFile, tokenBytes, 0600)
 	if err != nil {
 		log.Fatalf("could not write file: %v", err)
 	}
