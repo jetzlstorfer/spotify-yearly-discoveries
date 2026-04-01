@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yearly Discoveries</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #121212;
+      color: #fff;
+      font-family: 'Circular', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(180deg, #1a1a2e 0%, #121212 100%);
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+    }
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #1DB954;
+      letter-spacing: -0.5px;
+    }
+    header p {
+      margin-top: 0.4rem;
+      color: #b3b3b3;
+      font-size: 0.95rem;
+    }
+
+    /* ── Year selector ── */
+    .year-bar {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      padding: 1.25rem 2rem;
+      background: #181818;
+      border-bottom: 1px solid #282828;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .year-btn {
+      background: #282828;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 0.45rem 1.2rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, transform 0.1s;
+    }
+    .year-btn:hover  { background: #333; }
+    .year-btn:active { transform: scale(0.97); }
+    .year-btn.active { background: #1DB954; color: #000; }
+
+    /* ── Main content ── */
+    .content {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    /* ── Status / empty ── */
+    .status {
+      text-align: center;
+      color: #b3b3b3;
+      padding: 4rem 2rem;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+    .status.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #1DB954;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results header ── */
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .results-count {
+      color: #b3b3b3;
+      font-size: 0.9rem;
+    }
+    .results-count strong { color: #fff; }
+
+    /* ── Track list ── */
+    .track-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .track-card {
+      display: grid;
+      grid-template-columns: 2rem 52px 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      background: #181818;
+      border-radius: 6px;
+      padding: 0.65rem 1rem;
+      transition: background 0.15s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .track-card:hover { background: #282828; }
+
+    .track-num {
+      text-align: right;
+      color: #535353;
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .album-art {
+      width: 52px;
+      height: 52px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: #282828;
+      flex-shrink: 0;
+    }
+    .album-art-placeholder {
+      width: 52px;
+      height: 52px;
+      border-radius: 4px;
+      background: #282828;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #535353;
+      font-size: 1.3rem;
+    }
+
+    .track-info { min-width: 0; }
+    .track-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .track-sub {
+      margin-top: 2px;
+      font-size: 0.8rem;
+      color: #b3b3b3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      min-width: 0;
+    }
+    .track-dur {
+      font-size: 0.82rem;
+      color: #b3b3b3;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .track-playlist {
+      font-size: 0.72rem;
+      color: #535353;
+      max-width: 160px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: right;
+    }
+    .play-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.78rem;
+      color: #1DB954;
+      text-decoration: none;
+      opacity: 0.85;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .play-btn:hover { opacity: 1; }
+    .play-icon { font-size: 0.7rem; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .track-card {
+        grid-template-columns: 1.5rem 44px 1fr auto;
+        gap: 0.6rem;
+        padding: 0.6rem 0.75rem;
+      }
+      .album-art, .album-art-placeholder { width: 44px; height: 44px; }
+      .track-playlist { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎵 Yearly Discoveries</h1>
+  <p>Songs you added to your playlists that were released in a specific year</p>
+</header>
+
+<div class="year-bar" id="yearBar"></div>
+
+<div class="content">
+  <div id="statusArea" class="status">Select a year above to browse your discoveries.</div>
+  <div id="resultsHeader" class="results-header" style="display:none">
+    <div class="results-count">
+      Found <strong id="resultCount"></strong> songs released in <strong id="resultYear"></strong>
+    </div>
+  </div>
+  <div id="trackList" class="track-list"></div>
+</div>
+
+<script>
+  const yearBar       = document.getElementById('yearBar');
+  const statusArea    = document.getElementById('statusArea');
+  const resultsHeader = document.getElementById('resultsHeader');
+  const resultCount   = document.getElementById('resultCount');
+  const resultYear    = document.getElementById('resultYear');
+  const trackList     = document.getElementById('trackList');
+
+  let activeBtn = null;
+
+  // Fetch year range from server so the UI stays in sync with backend config.
+  fetch('/api/config')
+    .then(r => r.json())
+    .then(cfg => buildYearButtons(cfg.startYear, cfg.endYear))
+    .catch(() => buildYearButtons(2015, new Date().getFullYear()));
+
+  function buildYearButtons(startYear, endYear) {
+    for (let y = endYear; y >= startYear; y--) {
+      const btn = document.createElement('button');
+      btn.className    = 'year-btn';
+      btn.textContent  = y;
+      btn.dataset.year = y;
+      btn.addEventListener('click', () => loadYear(y, btn));
+      yearBar.appendChild(btn);
+    }
+  }
+
+  async function loadYear(year, btn) {
+    if (activeBtn) activeBtn.classList.remove('active');
+    activeBtn = btn;
+    btn.classList.add('active');
+
+    statusArea.innerHTML  = `<div class="spinner"></div> Loading songs for ${year}…`;
+    statusArea.className  = 'status loading';
+    statusArea.style.display = 'block';
+    resultsHeader.style.display = 'none';
+    trackList.innerHTML   = '';
+
+    try {
+      const res   = await fetch('/api/songs?year=' + year);
+      if (!res.ok) throw new Error('Server returned ' + res.status);
+      const songs = await res.json();
+
+      statusArea.style.display = 'none';
+
+      if (!songs || songs.length === 0) {
+        statusArea.textContent   = `No discoveries found for ${year}. Make sure you have playlists with "${year}" in their name.`;
+        statusArea.className     = 'status';
+        statusArea.style.display = 'block';
+        return;
+      }
+
+      resultCount.textContent = songs.length;
+      resultYear.textContent  = year;
+      resultsHeader.style.display = 'flex';
+      renderTracks(songs);
+    } catch (err) {
+      statusArea.textContent   = 'Error: ' + err.message;
+      statusArea.className     = 'status';
+      statusArea.style.display = 'block';
+    }
+  }
+
+  function fmtDuration(ms) {
+    const s   = Math.floor(ms / 1000);
+    const m   = Math.floor(s / 60);
+    const sec = s % 60;
+    return m + ':' + String(sec).padStart(2, '0');
+  }
+
+  function esc(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(str || ''));
+    return d.innerHTML;
+  }
+
+  function renderTracks(songs) {
+    trackList.innerHTML = songs.map((song, i) => `
+      <div class="track-card">
+        <div class="track-num">${i + 1}</div>
+        ${song.albumArtUrl
+          ? `<img class="album-art" src="${esc(song.albumArtUrl)}" alt="" loading="lazy">`
+          : `<div class="album-art-placeholder">♪</div>`}
+        <div class="track-info">
+          <div class="track-name">${esc(song.name)}</div>
+          <div class="track-sub">${esc(song.artists.join(', '))} · ${esc(song.album)}</div>
+        </div>
+        <div class="track-right">
+          <span class="track-dur">${fmtDuration(song.durationMs)}</span>
+          <span class="track-playlist">📋 ${esc(song.playlist)}</span>
+          ${song.spotifyUrl
+            ? `<a class="play-btn" href="${esc(song.spotifyUrl)}" target="_blank" rel="noopener"><span class="play-icon">▶</span> Open</a>`
+            : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+</script>
+</body>
+</html>
