@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/zmb3/spotify"
 )
@@ -33,9 +34,12 @@ func startWebServer(addr string) {
 		log.Fatalf("login failed: %v", err)
 	}
 
+	onlyLoved := os.Getenv("ONLY_LOVED_SONGS") != "false"
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", serveIndex)
-	mux.HandleFunc("/api/songs", makeSongsHandler(client))
+	mux.HandleFunc("/api/config", serveConfig)
+	mux.HandleFunc("/api/songs", makeSongsHandler(client, onlyLoved))
 
 	log.Printf("Web UI running at http://localhost%s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
@@ -48,7 +52,18 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write(indexHTML)
 }
 
-func makeSongsHandler(client spotify.Client) http.HandlerFunc {
+// serveConfig returns UI configuration (start/end year) so the frontend
+// does not need hard-coded values.
+func serveConfig(w http.ResponseWriter, r *http.Request) {
+	type config struct {
+		StartYear int `json:"startYear"`
+		EndYear   int `json:"endYear"`
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(config{StartYear: 2015, EndYear: time.Now().Year()})
+}
+
+func makeSongsHandler(client spotify.Client, onlyLoved bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -61,7 +76,7 @@ func makeSongsHandler(client spotify.Client) http.HandlerFunc {
 		}
 
 		playlists := getPlaylistsForYear(client, yr)
-		tracks := getDiscoveredTracksWithDetails(client, playlists, yr)
+		tracks := getDiscoveredTracksWithDetails(client, playlists, yr, onlyLoved)
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(tracks); err != nil {
@@ -97,11 +112,10 @@ func getPlaylistsForYear(client spotify.Client, yr string) []spotify.SimplePlayl
 }
 
 // getDiscoveredTracksWithDetails scans playlists for tracks released in the given year
-// and returns full track details (including only saved tracks when ONLY_LOVED_SONGS != "false").
-func getDiscoveredTracksWithDetails(client spotify.Client, playlists []spotify.SimplePlaylist, yr string) []TrackInfo {
+// and returns full track details (including only saved tracks when onlyLoved is true).
+func getDiscoveredTracksWithDetails(client spotify.Client, playlists []spotify.SimplePlaylist, yr string, onlyLoved bool) []TrackInfo {
 	seen := make(map[spotify.ID]bool)
 	result := []TrackInfo{}
-	onlyLoved := os.Getenv("ONLY_LOVED_SONGS") != "false"
 
 	type pending struct {
 		id   spotify.ID
@@ -151,7 +165,9 @@ func getDiscoveredTracksWithDetails(client spotify.Client, playlists []spotify.S
 		}
 
 		for _, track := range page.Tracks {
-			if !strings.Contains(track.Track.Album.ReleaseDate, yr) {
+			// Use HasPrefix so "2025" matches "2025-03-15" but not a date
+			// that merely contains "2025" as a substring elsewhere.
+			if !strings.HasPrefix(track.Track.Album.ReleaseDate, yr) {
 				continue
 			}
 

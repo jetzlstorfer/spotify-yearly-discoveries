@@ -238,9 +238,6 @@
 </div>
 
 <script>
-  const currentYear = new Date().getFullYear();
-  const startYear   = 2019;
-
   const yearBar       = document.getElementById('yearBar');
   const statusArea    = document.getElementById('statusArea');
   const resultsHeader = document.getElementById('resultsHeader');
@@ -250,13 +247,21 @@
 
   let activeBtn = null;
 
-  for (let y = currentYear; y >= startYear; y--) {
-    const btn = document.createElement('button');
-    btn.className    = 'year-btn';
-    btn.textContent  = y;
-    btn.dataset.year = y;
-    btn.addEventListener('click', () => loadYear(y, btn));
-    yearBar.appendChild(btn);
+  // Fetch year range from server so the UI stays in sync with backend config.
+  fetch('/api/config')
+    .then(r => r.json())
+    .then(cfg => buildYearButtons(cfg.startYear, cfg.endYear))
+    .catch(() => buildYearButtons(2015, new Date().getFullYear()));
+
+  function buildYearButtons(startYear, endYear) {
+    for (let y = endYear; y >= startYear; y--) {
+      const btn = document.createElement('button');
+      btn.className    = 'year-btn';
+      btn.textContent  = y;
+      btn.dataset.year = y;
+      btn.addEventListener('click', () => loadYear(y, btn));
+      yearBar.appendChild(btn);
+    }
   }
 
   async function loadYear(year, btn) {
@@ -264,7 +269,7 @@
     activeBtn = btn;
     btn.classList.add('active');
 
-    statusArea.innerHTML  = '<div class="spinner"></div> Loading songs for ' + year + '…';
+    statusArea.innerHTML  = `<div class="spinner"></div> Loading songs for ${year}…`;
     statusArea.className  = 'status loading';
     statusArea.style.display = 'block';
     resultsHeader.style.display = 'none';
@@ -278,7 +283,7 @@
       statusArea.style.display = 'none';
 
       if (!songs || songs.length === 0) {
-        statusArea.textContent   = 'No discoveries found for ' + year + '. Make sure you have playlists with "' + year + '" in their name.';
+        statusArea.textContent   = `No discoveries found for ${year}. Make sure you have playlists with "${year}" in their name.`;
         statusArea.className     = 'status';
         statusArea.style.display = 'block';
         return;
