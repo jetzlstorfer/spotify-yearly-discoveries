@@ -4,238 +4,53 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yearly Discoveries</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: #121212;
-      color: #fff;
-      font-family: 'Circular', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      min-height: 100vh;
-    }
-
-    /* ── Header ── */
-    header {
-      background: linear-gradient(180deg, #1a1a2e 0%, #121212 100%);
-      padding: 2.5rem 2rem 2rem;
-      text-align: center;
-    }
-    header h1 {
-      font-size: 2.2rem;
-      font-weight: 800;
-      color: #1DB954;
-      letter-spacing: -0.5px;
-    }
-    header p {
-      margin-top: 0.4rem;
-      color: #b3b3b3;
-      font-size: 0.95rem;
-    }
-
-    /* ── Year selector ── */
-    .year-bar {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 0.6rem;
-      padding: 1.25rem 2rem;
-      background: #181818;
-      border-bottom: 1px solid #282828;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    .year-btn {
-      background: #282828;
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      padding: 0.45rem 1.2rem;
-      font-size: 0.88rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s, transform 0.1s;
-    }
-    .year-btn:hover  { background: #333; }
-    .year-btn:active { transform: scale(0.97); }
-    .year-btn.active { background: #1DB954; color: #000; }
-
-    /* ── Main content ── */
-    .content {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-    }
-
-    /* ── Status / empty ── */
-    .status {
-      text-align: center;
-      color: #b3b3b3;
-      padding: 4rem 2rem;
-      font-size: 1rem;
-      line-height: 1.6;
-    }
-    .status.loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-    }
-    .spinner {
-      width: 22px;
-      height: 22px;
-      border: 3px solid #1DB954;
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Results header ── */
-    .results-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1.25rem;
-    }
-    .results-count {
-      color: #b3b3b3;
-      font-size: 0.9rem;
-    }
-    .results-count strong { color: #fff; }
-
-    /* ── Track list ── */
-    .track-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .track-card {
-      display: grid;
-      grid-template-columns: 2rem 52px 1fr auto;
-      align-items: center;
-      gap: 1rem;
-      background: #181818;
-      border-radius: 6px;
-      padding: 0.65rem 1rem;
-      transition: background 0.15s;
-      text-decoration: none;
-      color: inherit;
-    }
-    .track-card:hover { background: #282828; }
-
-    .track-num {
-      text-align: right;
-      color: #535353;
-      font-size: 0.85rem;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .album-art {
-      width: 52px;
-      height: 52px;
-      border-radius: 4px;
-      object-fit: cover;
-      background: #282828;
-      flex-shrink: 0;
-    }
-    .album-art-placeholder {
-      width: 52px;
-      height: 52px;
-      border-radius: 4px;
-      background: #282828;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #535353;
-      font-size: 1.3rem;
-    }
-
-    .track-info { min-width: 0; }
-    .track-name {
-      font-size: 0.95rem;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .track-sub {
-      margin-top: 2px;
-      font-size: 0.8rem;
-      color: #b3b3b3;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .track-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
-      min-width: 0;
-    }
-    .track-dur {
-      font-size: 0.82rem;
-      color: #b3b3b3;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-    .track-playlist {
-      font-size: 0.72rem;
-      color: #535353;
-      max-width: 160px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: right;
-    }
-    .play-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.78rem;
-      color: #1DB954;
-      text-decoration: none;
-      opacity: 0.85;
-      transition: opacity 0.15s;
-      white-space: nowrap;
-    }
-    .play-btn:hover { opacity: 1; }
-    .play-icon { font-size: 0.7rem; }
-
-    /* ── Responsive ── */
-    @media (max-width: 600px) {
-      .track-card {
-        grid-template-columns: 1.5rem 44px 1fr auto;
-        gap: 0.6rem;
-        padding: 0.6rem 0.75rem;
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            spotify: {
+              green: '#1DB954',
+              black: '#121212',
+              panel: '#181818',
+              panelHover: '#282828',
+              muted: '#b3b3b3'
+            }
+          },
+          boxShadow: {
+            glow: '0 20px 60px rgba(29, 185, 84, 0.16)'
+          }
+        }
       }
-      .album-art, .album-art-placeholder { width: 44px; height: 44px; }
-      .track-playlist { display: none; }
-    }
-  </style>
+    };
+  </script>
 </head>
-<body>
+<body class="min-h-screen bg-spotify-black text-white antialiased">
 
-<header>
-  <h1>🎵 Yearly Discoveries</h1>
-  <p>Songs you added to your playlists that were released in a specific year</p>
+<div class="absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(circle_at_top,rgba(29,185,84,0.18),transparent_45%),linear-gradient(180deg,#1a1a2e_0%,#121212_72%)]"></div>
+
+<header class="px-6 pb-8 pt-10 text-center sm:px-8">
+  <div class="mx-auto max-w-4xl rounded-[2rem] border border-white/10 bg-white/5 px-6 py-8 shadow-glow backdrop-blur">
+    <p class="text-xs font-semibold uppercase tracking-[0.35em] text-spotify-green/75">Spotify Explorer</p>
+    <h1 class="mt-4 text-4xl font-black tracking-tight text-spotify-green sm:text-5xl">🎵 Yearly Discoveries</h1>
+    <p class="mx-auto mt-3 max-w-2xl text-sm leading-6 text-spotify-muted sm:text-base">Songs you added to your playlists that were released in a specific year</p>
+  </div>
 </header>
 
-<div class="year-bar" id="yearBar"></div>
+<div class="sticky top-0 z-10 border-y border-white/10 bg-black/35 backdrop-blur-xl">
+  <div id="yearBar" class="mx-auto flex max-w-6xl flex-wrap justify-center gap-3 px-4 py-5 sm:px-6"></div>
+</div>
 
-<div class="content">
-  <div id="statusArea" class="status">Select a year above to browse your discoveries.</div>
-  <div id="resultsHeader" class="results-header" style="display:none">
-    <div class="results-count">
-      Found <strong id="resultCount"></strong> songs released in <strong id="resultYear"></strong>
+<main class="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+  <div id="statusArea" class="rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.03] px-6 py-20 text-center text-base leading-7 text-spotify-muted">Select a year above to browse your discoveries.</div>
+  <div id="resultsHeader" class="mb-5 hidden items-center justify-between gap-4">
+    <div class="text-sm text-spotify-muted sm:text-base">
+      Found <strong id="resultCount" class="font-semibold text-white"></strong> songs released in <strong id="resultYear" class="font-semibold text-white"></strong>
     </div>
   </div>
-  <div id="trackList" class="track-list"></div>
-</div>
+  <div id="trackList" class="flex flex-col gap-2"></div>
+</main>
 
 <script>
   const yearBar       = document.getElementById('yearBar');
@@ -247,6 +62,40 @@
 
   let activeBtn = null;
 
+  const yearBtnBaseClasses = [
+    'rounded-full',
+    'border',
+    'border-white/5',
+    'bg-white/10',
+    'px-5',
+    'py-2',
+    'text-sm',
+    'font-semibold',
+    'text-white',
+    'transition',
+    'duration-150',
+    'hover:bg-white/15',
+    'active:scale-[0.98]'
+  ];
+  const yearBtnActiveClasses = [
+    'border-spotify-green/50',
+    'bg-spotify-green',
+    'text-black',
+    'shadow-lg',
+    'shadow-spotify-green/20'
+  ];
+
+  function setStatus(message, loading = false) {
+    statusArea.className = loading
+      ? 'flex items-center justify-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-6 py-20 text-center text-base leading-7 text-spotify-muted'
+      : 'rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.03] px-6 py-20 text-center text-base leading-7 text-spotify-muted';
+
+    statusArea.innerHTML = loading
+      ? `<div class="h-6 w-6 animate-spin rounded-full border-[3px] border-spotify-green border-t-transparent"></div><span>${esc(message)}</span>`
+      : esc(message);
+    statusArea.style.display = 'block';
+  }
+
   // Fetch year range from server so the UI stays in sync with backend config.
   fetch('/api/config')
     .then(r => r.json())
@@ -256,7 +105,7 @@
   function buildYearButtons(startYear, endYear) {
     for (let y = endYear; y >= startYear; y--) {
       const btn = document.createElement('button');
-      btn.className    = 'year-btn';
+      btn.className    = yearBtnBaseClasses.join(' ');
       btn.textContent  = y;
       btn.dataset.year = y;
       btn.addEventListener('click', () => loadYear(y, btn));
@@ -265,14 +114,15 @@
   }
 
   async function loadYear(year, btn) {
-    if (activeBtn) activeBtn.classList.remove('active');
+    if (activeBtn) {
+      activeBtn.classList.remove(...yearBtnActiveClasses);
+    }
     activeBtn = btn;
-    btn.classList.add('active');
+    btn.classList.add(...yearBtnActiveClasses);
 
-    statusArea.innerHTML  = `<div class="spinner"></div> Loading songs for ${year}…`;
-    statusArea.className  = 'status loading';
-    statusArea.style.display = 'block';
-    resultsHeader.style.display = 'none';
+    setStatus(`Loading songs for ${year}…`, true);
+    resultsHeader.classList.add('hidden');
+    resultsHeader.classList.remove('flex');
     trackList.innerHTML   = '';
 
     try {
@@ -283,20 +133,17 @@
       statusArea.style.display = 'none';
 
       if (!songs || songs.length === 0) {
-        statusArea.textContent   = `No discoveries found for ${year}. Make sure you have playlists with "${year}" in their name.`;
-        statusArea.className     = 'status';
-        statusArea.style.display = 'block';
+        setStatus(`No discoveries found for ${year}. Make sure you have playlists with "${year}" in their name.`);
         return;
       }
 
       resultCount.textContent = songs.length;
       resultYear.textContent  = year;
-      resultsHeader.style.display = 'flex';
+      resultsHeader.classList.remove('hidden');
+      resultsHeader.classList.add('flex');
       renderTracks(songs);
     } catch (err) {
-      statusArea.textContent   = 'Error: ' + err.message;
-      statusArea.className     = 'status';
-      statusArea.style.display = 'block';
+      setStatus('Error: ' + err.message);
     }
   }
 
@@ -315,20 +162,20 @@
 
   function renderTracks(songs) {
     trackList.innerHTML = songs.map((song, i) => `
-      <div class="track-card">
-        <div class="track-num">${i + 1}</div>
+      <div class="grid grid-cols-[1.5rem_44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/5 bg-spotify-panel/90 px-3 py-3 text-left transition duration-150 hover:border-white/10 hover:bg-spotify-panelHover sm:grid-cols-[2rem_52px_minmax(0,1fr)_auto] sm:gap-4 sm:px-4">
+        <div class="text-right text-xs tabular-nums text-white/30 sm:text-sm">${i + 1}</div>
         ${song.albumArtUrl
-          ? `<img class="album-art" src="${esc(song.albumArtUrl)}" alt="" loading="lazy">`
-          : `<div class="album-art-placeholder">♪</div>`}
-        <div class="track-info">
-          <div class="track-name">${esc(song.name)}</div>
-          <div class="track-sub">${esc(song.artists.join(', '))} · ${esc(song.album)}</div>
+          ? `<img class="h-11 w-11 rounded-xl bg-white/10 object-cover sm:h-14 sm:w-14" src="${esc(song.albumArtUrl)}" alt="" loading="lazy">`
+          : `<div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-lg text-white/30 sm:h-14 sm:w-14">♪</div>`}
+        <div class="min-w-0">
+          <div class="truncate text-sm font-semibold text-white sm:text-[0.95rem]">${esc(song.name)}</div>
+          <div class="mt-0.5 truncate text-xs text-spotify-muted sm:text-[0.8rem]">${esc(song.artists.join(', '))} · ${esc(song.album)}</div>
         </div>
-        <div class="track-right">
-          <span class="track-dur">${fmtDuration(song.durationMs)}</span>
-          <span class="track-playlist">📋 ${esc(song.playlist)}</span>
+        <div class="flex min-w-0 flex-col items-end gap-1 text-right">
+          <span class="whitespace-nowrap text-xs tabular-nums text-spotify-muted sm:text-[0.82rem]">${fmtDuration(song.durationMs)}</span>
+          <span class="hidden max-w-40 truncate text-[0.72rem] text-white/35 sm:inline">📋 ${esc(song.playlist)}</span>
           ${song.spotifyUrl
-            ? `<a class="play-btn" href="${esc(song.spotifyUrl)}" target="_blank" rel="noopener"><span class="play-icon">▶</span> Open</a>`
+            ? `<a class="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-spotify-green/20 bg-spotify-green/10 px-3 py-1 text-[0.78rem] font-medium text-spotify-green transition hover:bg-spotify-green/15" href="${esc(song.spotifyUrl)}" target="_blank" rel="noopener"><span class="text-[0.7rem]">▶</span> Open</a>`
             : ''}
         </div>
       </div>
