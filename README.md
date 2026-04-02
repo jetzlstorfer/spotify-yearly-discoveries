@@ -82,5 +82,3 @@ Make sure your `.env` file and token file are present before running the contain
 
 ## Contribute
 Feel free to open a PR or issue.
-
-I'm happy to hear your feedback via [@jetzlstorfer](https://twitter.com/jetzlstorfer).
