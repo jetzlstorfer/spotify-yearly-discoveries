@@ -65,6 +65,12 @@ The server starts on `http://localhost:8080` by default. You can also pass a cus
 go run ./cmd/spotify-yearly-discoveries -web -port 9090
 ```
 
+### Screenshots
+
+![Web UI — initial state](webui-screenshot-tailwind.png)
+
+![Web UI — discoveries for 2025](webui-screenshot-tailwind-2025.png)
+
 ## Docker
 
 A `Dockerfile` is included for running the batch mode in a container:
