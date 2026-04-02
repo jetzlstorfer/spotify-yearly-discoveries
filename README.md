@@ -1,5 +1,5 @@
 
-# Spotify Discoveries (per year)
+# Spotify Yearly Discoveries
 
 I wanted to know which songs I've discovered in a given year and added to my playlists that are actually _from_ that year. Therefore I made this small program.
 
