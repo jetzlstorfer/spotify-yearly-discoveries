@@ -1,0 +1,16 @@
+{
+  "name": "Spotify Yearly Discoveries",
+  "image": "mcr.microsoft.com/devcontainers/go:1-1.25-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  },
+  "forwardPorts": [8080],
+  "postCreateCommand": "go mod download"
+}
