@@ -18,4 +18,6 @@ WORKDIR /app
 
 COPY --from=builder /app/spotify-yearly-discoveries .
 
+EXPOSE 8080
+
 CMD ["./spotify-yearly-discoveries"]
