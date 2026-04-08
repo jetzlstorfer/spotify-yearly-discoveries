@@ -1,0 +1,65 @@
+name: Build and Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  APP_NAME: spotify-yearly-discoveries
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Ensure the resource group and ACR exist (first-time infra deploy)
+      - name: Deploy infrastructure
+        uses: azure/arm-deploy@v2
+        id: infra
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >-
+            appName=${{ env.APP_NAME }}
+            containerImage=${{ env.APP_NAME }}:${{ github.sha }}
+            spotifyId=${{ secrets.SPOTIFY_ID }}
+            spotifySecret=${{ secrets.SPOTIFY_SECRET }}
+            spotifyToken=${{ secrets.SPOTIFY_TOKEN }}
+          failOnStdErr: false
+
+      - name: Log in to ACR
+        run: az acr login --name ${{ steps.infra.outputs.acrName }}
+
+      - name: Build and push container image
+        run: |
+          IMAGE="${{ steps.infra.outputs.acrLoginServer }}/${{ env.APP_NAME }}:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Update Container App with new image
+        run: |
+          IMAGE="${{ steps.infra.outputs.acrLoginServer }}/${{ env.APP_NAME }}:${{ github.sha }}"
+          az containerapp update \
+            --name ${{ env.APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image "$IMAGE"
+
+      - name: Show application URL
+        run: |
+          echo "🚀 App deployed to: https://${{ steps.infra.outputs.containerAppFqdn }}"

@@ -20,7 +20,7 @@ func buildRedirectURI() string {
 		}
 		return fmt.Sprintf("https://%s-8888.%s/callback", name, domain)
 	}
-	return "http://localhost:8888/callback"
+	return "http://127.0.0.1:8888/callback"
 }
 
 var redirectURI = buildRedirectURI()

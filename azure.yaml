@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: spotify-yearly-discoveries
+
+services:
+  web:
+    host: containerapp
+    image: docker
+    project: .
+    docker:
+      path: Dockerfile

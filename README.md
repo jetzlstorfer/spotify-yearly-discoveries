@@ -59,7 +59,7 @@ Launch an interactive web UI that lets you browse discoveries for any year witho
 make serve
 ```
 
-The server starts on `http://localhost:8080` by default. You can also pass a custom port:
+The server starts on `http://127.0.0.1:8080` by default. You can also pass a custom port:
 
 ```
 go run ./cmd/spotify-yearly-discoveries -web -port 9090
@@ -85,6 +85,61 @@ docker run --rm \
 ```
 
 Make sure your `.env` file and token file are present before running the container.
+
+## Deploy to Azure Container Apps
+
+The repo includes Bicep infrastructure templates and a GitHub Actions workflow for automated deployment.
+
+### Prerequisites
+
+1. An Azure subscription
+2. A resource group (e.g. `rg-spotify-yearly-discoveries`)
+3. An Azure AD app registration with federated credentials for GitHub Actions OIDC — the service principal needs **Contributor** + **User Access Administrator** roles on the resource group
+
+### GitHub repository configuration
+
+Add the following **secrets** in your repo settings under *Settings → Secrets and variables → Actions*:
+
+| Secret | Description |
+|---|---|
+| `AZURE_CLIENT_ID` | App registration (service principal) client ID |
+| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| `SPOTIFY_ID` | Spotify OAuth client ID |
+| `SPOTIFY_SECRET` | Spotify OAuth client secret |
+| `SPOTIFY_TOKEN` | Full JSON content of your OAuth token file (generated via `make token`) |
+
+Add the following **variable**:
+
+| Variable | Description |
+|---|---|
+| `AZURE_RESOURCE_GROUP` | Name of the resource group to deploy into |
+
+### Deploy
+
+Push to `main` or trigger the workflow manually. The pipeline will:
+
+1. Deploy/update Azure infrastructure (ACR, Container App Environment, Container App)
+2. Build and push the Docker image to ACR
+3. Update the Container App with the new image
+
+After the first successful deployment, the app URL is printed in the workflow output.
+
+### Manual infrastructure deployment
+
+```bash
+az group create --name rg-spotify --location eastus
+
+az deployment group create \
+  --resource-group rg-spotify \
+  --template-file infra/main.bicep \
+  --parameters \
+    appName=spotify-yearly-discoveries \
+    containerImage=mcr.microsoft.com/k8se/quickstart:latest \
+    spotifyId=<YOUR_SPOTIFY_ID> \
+    spotifySecret=<YOUR_SPOTIFY_SECRET> \
+    spotifyToken='<TOKEN_JSON>'
+```
 
 ## Contribute
 Feel free to open a PR or issue.
