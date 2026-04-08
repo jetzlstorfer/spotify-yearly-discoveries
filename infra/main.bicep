@@ -23,9 +23,11 @@ param onlyLovedSongs string = 'true'
 // ---------- Container Registry ----------
 
 var acrName = replace('acr${appName}', '-', '')
+var acrActualName = length(acrName) > 50 ? substring(acrName, 0, 50) : acrName
+var acrLoginServer = '${acrActualName}.azurecr.io'
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
-  name: length(acrName) > 50 ? substring(acrName, 0, 50) : acrName
+  name: acrActualName
   location: location
   sku: {
     name: 'Basic'
@@ -111,7 +113,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
       registries: [
         {
-          server: acr.properties.loginServer
+          server: acrLoginServer
           identity: identity.id
         }
       ]
@@ -130,7 +132,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: appName
-          image: '${acr.properties.loginServer}/${containerImage}'
+          image: '${acrLoginServer}/${containerImage}'
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
@@ -164,9 +166,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
 
 // ---------- Outputs ----------
 
-output acrLoginServer string = acr.properties.loginServer
+output acrLoginServer string = acrLoginServer
 output acrName string = acr.name
 output containerAppFqdn string = containerApp.properties.configuration.ingress.fqdn
 output identityClientId string = identity.properties.clientId
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acr.properties.loginServer
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acrLoginServer
 output SERVICE_WEB_IMAGE_NAME string = containerImage
