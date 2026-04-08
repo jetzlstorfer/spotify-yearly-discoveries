@@ -15,5 +15,5 @@ build:
 serve:
 	go run ./cmd/spotify-yearly-discoveries -web
 
-open-browser:
+open-playlist:
 	python3 -m webbrowser https://open.spotify.com/playlist/$(PLAYLIST_ID)

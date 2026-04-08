@@ -6,9 +6,6 @@ param appName string = 'spotify-yearly-discoveries'
 @description('Azure region for all resources')
 param location string = resourceGroup().location
 
-@description('Container image to deploy (e.g. myacr.azurecr.io/spotify-yearly-discoveries:latest)')
-param containerImage string
-
 @description('Spotify OAuth client ID')
 @secure()
 param spotifyId string
@@ -17,9 +14,8 @@ param spotifyId string
 @secure()
 param spotifySecret string
 
-@description('Spotify OAuth token JSON')
-@secure()
-param spotifyToken string
+@description('Container image to deploy')
+param containerImage string
 
 @description('Only include loved/saved songs')
 param onlyLovedSongs string = 'true'
@@ -94,6 +90,9 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: appName
   location: location
+  tags: {
+    'azd-service-name': 'web'
+  }
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -125,10 +124,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'spotify-secret'
           value: spotifySecret
         }
-        {
-          name: 'spotify-token'
-          value: spotifyToken
-        }
       ]
     }
     template: {
@@ -136,7 +131,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: appName
           image: containerImage
-          command: ['/bin/sh', '-c', 'echo "$SPOTIFY_TOKEN_JSON" > /app/token.json && ./spotify-yearly-discoveries -web']
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
@@ -149,14 +143,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SPOTIFY_SECRET'
               secretRef: 'spotify-secret'
-            }
-            {
-              name: 'SPOTIFY_TOKEN_JSON'
-              secretRef: 'spotify-token'
-            }
-            {
-              name: 'TOKEN_FILE'
-              value: '/app/token.json'
             }
             {
               name: 'ONLY_LOVED_SONGS'
@@ -182,3 +168,5 @@ output acrLoginServer string = acr.properties.loginServer
 output acrName string = acr.name
 output containerAppFqdn string = containerApp.properties.configuration.ingress.fqdn
 output identityClientId string = identity.properties.clientId
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acr.properties.loginServer
+output SERVICE_WEB_IMAGE_NAME string = containerImage

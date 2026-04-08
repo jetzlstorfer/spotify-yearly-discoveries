@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/zmb3/spotify/v2"
 )
 
 func TestServeConfig(t *testing.T) {
@@ -39,31 +41,30 @@ func TestServeConfig(t *testing.T) {
 	}
 }
 
-func TestServeIndex(t *testing.T) {
+func TestServeIndex_NoSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
 	serveIndex(w, req)
 
 	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected redirect 302, got %d", resp.StatusCode)
 	}
-	if ct := resp.Header.Get("Content-Type"); ct != "text/html; charset=utf-8" {
-		t.Errorf("Content-Type = %q, want %q", ct, "text/html; charset=utf-8")
+	if loc := resp.Header.Get("Location"); loc != "/login" {
+		t.Errorf("Location = %q, want %q", loc, "/login")
 	}
 }
 
-func TestMakeSongsHandler_MissingYear(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/api/songs", nil)
+func TestMakeSongsHandler_NoSession(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/songs?year=2024", nil)
 	w := httptest.NewRecorder()
 
-	// nil client is safe here because the handler returns before any client call
-	handler := makeSongsHandler(nil, true)
+	handler := makeSongsHandler(true)
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400 for missing year, got %d", w.Code)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected status 401 for missing session, got %d", w.Code)
 	}
 }
 
@@ -71,10 +72,21 @@ func TestMakeSongsHandler_MethodNotAllowed(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/songs?year=2024", nil)
 	w := httptest.NewRecorder()
 
-	handler := makeSongsHandler(nil, true)
+	// Add a valid session so we get past the auth check
+	sessionID := generateRandom()
+	mu.Lock()
+	sessions[sessionID] = spotify.New(http.DefaultClient)
+	mu.Unlock()
+	req.AddCookie(&http.Cookie{Name: "session", Value: sessionID})
+
+	handler := makeSongsHandler(true)
 	handler(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf("expected status 405 for POST, got %d", w.Code)
 	}
+
+	mu.Lock()
+	delete(sessions, sessionID)
+	mu.Unlock()
 }

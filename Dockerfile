@@ -20,4 +20,4 @@ COPY --from=builder /app/spotify-yearly-discoveries .
 
 EXPOSE 8080
 
-CMD ["./spotify-yearly-discoveries"]
+CMD ["./spotify-yearly-discoveries", "-web"]
