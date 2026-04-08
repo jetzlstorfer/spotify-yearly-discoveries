@@ -3,10 +3,11 @@ name: Build and Deploy to Azure Container Apps
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
-  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
   APP_NAME: spotify-yearly-discoveries
 
 permissions:
@@ -14,8 +15,29 @@ permissions:
   contents: read
 
 jobs:
-  build-and-deploy:
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binary
+        run: go build -o spotify-yearly-discoveries ./cmd/spotify-yearly-discoveries
+
+  build-and-deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +62,6 @@ jobs:
             containerImage=${{ env.APP_NAME }}:${{ github.sha }}
             spotifyId=${{ secrets.SPOTIFY_ID }}
             spotifySecret=${{ secrets.SPOTIFY_SECRET }}
-            spotifyToken=${{ secrets.SPOTIFY_TOKEN }}
           failOnStdErr: false
 
       - name: Log in to ACR
