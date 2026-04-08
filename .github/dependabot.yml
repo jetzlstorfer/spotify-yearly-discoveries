@@ -14,3 +14,8 @@ updates:
     directory: "/" # Location of Dockerfile
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/" # Location of workflow files 
+    schedule:
+      interval: "weekly"
