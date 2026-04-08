@@ -6,25 +6,10 @@ param appName string = 'spotify-yearly-discoveries'
 @description('Azure region for all resources')
 param location string = resourceGroup().location
 
-@description('Spotify OAuth client ID')
-@secure()
-param spotifyId string
-
-@description('Spotify OAuth client secret')
-@secure()
-param spotifySecret string
-
-@description('Container image to deploy')
-param containerImage string
-
-@description('Only include loved/saved songs')
-param onlyLovedSongs string = 'true'
-
 // ---------- Container Registry ----------
 
 var acrName = replace('acr${appName}', '-', '')
 var acrActualName = length(acrName) > 50 ? substring(acrName, 0, 50) : acrName
-var acrLoginServer = '${acrActualName}.azurecr.io'
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrActualName
@@ -87,88 +72,10 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// ---------- Container App ----------
-
-resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: appName
-  location: location
-  tags: {
-    'azd-service-name': 'web'
-  }
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${identity.id}': {}
-    }
-  }
-  properties: {
-    managedEnvironmentId: containerAppEnv.id
-    configuration: {
-      activeRevisionsMode: 'Single'
-      ingress: {
-        external: true
-        targetPort: 8080
-        transport: 'http'
-        allowInsecure: false
-      }
-      registries: [
-        {
-          server: acrLoginServer
-          identity: identity.id
-        }
-      ]
-      secrets: [
-        {
-          name: 'spotify-id'
-          value: spotifyId
-        }
-        {
-          name: 'spotify-secret'
-          value: spotifySecret
-        }
-      ]
-    }
-    template: {
-      containers: [
-        {
-          name: appName
-          image: '${acrLoginServer}/${containerImage}'
-          resources: {
-            cpu: json('0.25')
-            memory: '0.5Gi'
-          }
-          env: [
-            {
-              name: 'SPOTIFY_ID'
-              secretRef: 'spotify-id'
-            }
-            {
-              name: 'SPOTIFY_SECRET'
-              secretRef: 'spotify-secret'
-            }
-            {
-              name: 'ONLY_LOVED_SONGS'
-              value: onlyLovedSongs
-            }
-          ]
-        }
-      ]
-      scale: {
-        minReplicas: 0
-        maxReplicas: 1
-      }
-    }
-  }
-  dependsOn: [
-    acrPullRole
-  ]
-}
-
 // ---------- Outputs ----------
 
-output acrLoginServer string = acrLoginServer
+output acrLoginServer string = acr.properties.loginServer
 output acrName string = acr.name
-output containerAppFqdn string = containerApp.properties.configuration.ingress.fqdn
-output identityClientId string = identity.properties.clientId
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acrLoginServer
-output SERVICE_WEB_IMAGE_NAME string = containerImage
+output environmentId string = containerAppEnv.id
+output identityId string = identity.id
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acr.properties.loginServer

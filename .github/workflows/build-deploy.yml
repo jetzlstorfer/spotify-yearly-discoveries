@@ -49,8 +49,8 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Ensure the resource group and ACR exist (first-time infra deploy)
-      - name: Deploy infrastructure
+      # Step 1: Deploy base infrastructure (ACR, environment, identity)
+      - name: Deploy base infrastructure
         uses: azure/arm-deploy@v2
         id: infra
         with:
@@ -59,11 +59,9 @@ jobs:
           template: ./infra/main.bicep
           parameters: >-
             appName=${{ env.APP_NAME }}
-            containerImage=${{ env.APP_NAME }}:${{ github.sha }}
-            spotifyId=${{ secrets.SPOTIFY_ID }}
-            spotifySecret=${{ secrets.SPOTIFY_SECRET }}
           failOnStdErr: false
 
+      # Step 2: Build and push image to ACR (image now exists before app deploy)
       - name: Log in to ACR
         run: az acr login --name ${{ steps.infra.outputs.acrName }}
 
@@ -73,14 +71,24 @@ jobs:
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
-      - name: Update Container App with new image
-        run: |
-          IMAGE="${{ steps.infra.outputs.acrLoginServer }}/${{ env.APP_NAME }}:${{ github.sha }}"
-          az containerapp update \
-            --name ${{ env.APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image "$IMAGE"
+      # Step 3: Deploy Container App (image already exists in ACR)
+      - name: Deploy application
+        uses: azure/arm-deploy@v2
+        id: app
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: ./infra/app.bicep
+          parameters: >-
+            appName=${{ env.APP_NAME }}
+            containerImage=${{ steps.infra.outputs.acrLoginServer }}/${{ env.APP_NAME }}:${{ github.sha }}
+            environmentId=${{ steps.infra.outputs.environmentId }}
+            identityId=${{ steps.infra.outputs.identityId }}
+            acrLoginServer=${{ steps.infra.outputs.acrLoginServer }}
+            spotifyId=${{ secrets.SPOTIFY_ID }}
+            spotifySecret=${{ secrets.SPOTIFY_SECRET }}
+          failOnStdErr: false
 
       - name: Show application URL
         run: |
-          echo "🚀 App deployed to: https://${{ steps.infra.outputs.containerAppFqdn }}"
+          echo "🚀 App deployed to: https://${{ steps.app.outputs.containerAppFqdn }}"
