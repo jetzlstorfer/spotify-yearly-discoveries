@@ -59,7 +59,7 @@ Launch an interactive web UI that lets you browse discoveries for any year witho
 make serve
 ```
 
-The server starts on `http://localhost:8080` by default. You can also pass a custom port:
+The server starts on `http://127.0.0.1:8080` by default. You can also pass a custom port:
 
 ```
 go run ./cmd/spotify-yearly-discoveries -web -port 9090

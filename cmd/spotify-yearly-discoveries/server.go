@@ -99,7 +99,7 @@ func startWebServer(addr string) {
 	mux.HandleFunc("/api/config", serveConfig)
 	mux.HandleFunc("/api/songs", makeSongsHandler(onlyLoved))
 
-	log.Printf("Web UI running at http://localhost%s", addr)
+	log.Printf("Web UI running at http://127.0.0.1%s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
