@@ -54,8 +54,14 @@ func main() {
 		log.Fatalln("could not verify login: " + err.Error())
 	}
 
+	// get current user to filter owned playlists only
+	currentUser, err := client.CurrentUser(ctx)
+	if err != nil {
+		log.Fatalln("could not get current user: " + err.Error())
+	}
+
 	// get all playlists that match the YEAR in the playlist title
-	playlistsToConsider := getPlaylistsMatchingCondition(ctx, client, year)
+	playlistsToConsider := getPlaylistsMatchingCondition(ctx, client, year, currentUser.ID)
 	log.Println("Number of playlists with " + year + " in title: " + strconv.Itoa(len(playlistsToConsider)))
 
 	yearlyDiscovery := getDiscoveredSongsFromPlaylists(ctx, client, playlistsToConsider)
@@ -84,7 +90,7 @@ func main() {
 	log.Println(strconv.Itoa(int(updatedPlaylist.Tracks.Total)) + " songs added to playlist")
 }
 
-func getPlaylistsMatchingCondition(ctx context.Context, client *spotify.Client, condition string) []spotify.SimplePlaylist {
+func getPlaylistsMatchingCondition(ctx context.Context, client *spotify.Client, condition string, userID string) []spotify.SimplePlaylist {
 	var offset int
 	var limit int = 50
 	var playlistsToConsider []spotify.SimplePlaylist
@@ -95,7 +101,7 @@ func getPlaylistsMatchingCondition(ctx context.Context, client *spotify.Client, 
 		}
 
 		for _, playlist := range page.Playlists {
-			if strings.Contains(playlist.Name, condition) && playlist.ID != spotify.ID(yearsPlaylistID) {
+			if strings.Contains(playlist.Name, condition) && playlist.ID != spotify.ID(yearsPlaylistID) && playlist.Owner.ID == userID {
 				playlistsToConsider = append(playlistsToConsider, playlist)
 			}
 		}
