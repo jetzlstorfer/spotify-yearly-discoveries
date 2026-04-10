@@ -89,8 +89,6 @@ func TestTrackIsFromYear(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// trackIsFromYear uses the global `year` variable
-			year = tt.year
 			track := spotify.PlaylistTrack{
 				Track: spotify.FullTrack{
 					SimpleTrack: spotify.SimpleTrack{},
@@ -99,7 +97,7 @@ func TestTrackIsFromYear(t *testing.T) {
 					},
 				},
 			}
-			got := trackIsFromYear(track)
+			got := trackIsFromYear(track, tt.year)
 			if got != tt.want {
 				t.Errorf("trackIsFromYear(%q, year=%q) = %v, want %v",
 					tt.releaseDate, tt.year, got, tt.want)

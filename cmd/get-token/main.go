@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -28,28 +30,41 @@ var redirectURI = buildRedirectURI()
 var tokenFile = os.Getenv("TOKEN_FILE")
 
 var (
-	auth  = spotifyauth.New(spotifyauth.WithRedirectURL(redirectURI), spotifyauth.WithScopes(spotifyauth.ScopePlaylistReadPrivate, spotifyauth.ScopePlaylistModifyPrivate, spotifyauth.ScopePlaylistModifyPublic, spotifyauth.ScopeUserLibraryRead))
-	ch    = make(chan *spotify.Client)
-	state = "myCrazyState"
+	auth      = spotifyauth.New(spotifyauth.WithRedirectURL(redirectURI), spotifyauth.WithScopes(spotifyauth.ScopePlaylistReadPrivate, spotifyauth.ScopePlaylistModifyPrivate, spotifyauth.ScopePlaylistModifyPublic, spotifyauth.ScopeUserLibraryRead))
+	ch        = make(chan *spotify.Client)
+	authState = generateState()
 )
+
+// generateState returns a cryptographically random hex string for use as an
+// OAuth CSRF state parameter. Using a static string would allow an attacker who
+// knows the value to forge a redirect and capture the user's token.
+func generateState() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		slog.Error("could not generate random state", "err", err)
+		os.Exit(1)
+	}
+	return hex.EncodeToString(b)
+}
 
 func main() {
 
-	url := auth.AuthURL(state)
+	url := auth.AuthURL(authState)
 
 	// start an HTTP server
 	http.HandleFunc("/callback", completeAuth)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Got request for:", r.URL.String())
+		slog.Info("got request", "url", r.URL.String())
 		http.Redirect(w, r, url, http.StatusFound)
 	})
 	go func() {
 		if err := http.ListenAndServe(":8888", nil); err != nil {
-			log.Fatalf("could not start HTTP server: %v", err)
+			slog.Error("could not start HTTP server", "err", err)
+			os.Exit(1)
 		}
 	}()
 
-	log.Println("Please log in to Spotify by visiting the following page in your browser:", url)
+	slog.Info("please log in to Spotify by visiting the following page in your browser", "url", url)
 
 	// wait for auth to complete
 	client := <-ch
@@ -57,31 +72,36 @@ func main() {
 	// use the client to make calls that require authorization
 	user, err := client.CurrentUser(context.Background())
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("could not get current user", "err", err)
+		os.Exit(1)
 	}
-	log.Printf("You are logged in as: %s (%s)", user.DisplayName, user.ID)
+	slog.Info("logged in", "displayName", user.DisplayName, "userID", user.ID)
 }
 
 func completeAuth(w http.ResponseWriter, r *http.Request) {
-	tok, err := auth.Token(r.Context(), state, r)
+	tok, err := auth.Token(r.Context(), authState, r)
 	if err != nil {
 		http.Error(w, "Couldn't get token", http.StatusForbidden)
-		log.Fatal(err)
+		slog.Error("could not get token", "err", err)
+		os.Exit(1)
 	}
-	log.Println("token retrieved")
-	if st := r.FormValue("state"); st != state {
+	slog.Info("token retrieved")
+	if st := r.FormValue("state"); st != authState {
 		http.NotFound(w, r)
-		log.Fatalf("State mismatch: %s != %s\n", st, state)
+		slog.Error("state mismatch", "got", st, "want", authState)
+		os.Exit(1)
 	}
 
 	tokenBytes, err := json.Marshal(tok)
 	if err != nil {
-		log.Fatalf("could not marshal token: %v", err)
+		slog.Error("could not marshal token", "err", err)
+		os.Exit(1)
 	}
 
 	err = os.WriteFile(tokenFile, tokenBytes, 0600)
 	if err != nil {
-		log.Fatalf("could not write file: %v", err)
+		slog.Error("could not write file", "err", err)
+		os.Exit(1)
 	}
 
 	// use the token to get an authenticated client

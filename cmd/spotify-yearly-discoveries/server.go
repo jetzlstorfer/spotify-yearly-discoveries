@@ -7,11 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -35,16 +34,36 @@ type TrackInfo struct {
 	Playlist    string   `json:"playlist"`
 }
 
+// sessionEntry holds a Spotify client together with its expiry time so that
+// the background cleanup goroutine can discard stale sessions.
+type sessionEntry struct {
+	client    *spotify.Client
+	expiresAt time.Time
+}
+
 var (
-	sessions    = map[string]*spotify.Client{}
+	sessions    = map[string]*sessionEntry{}
 	oauthStates = map[string]bool{}
 	mu          sync.Mutex
 )
 
+// cleanExpiredSessions removes all sessions whose TTL has elapsed.
+func cleanExpiredSessions() {
+	mu.Lock()
+	defer mu.Unlock()
+	now := time.Now()
+	for id, s := range sessions {
+		if now.After(s.expiresAt) {
+			delete(sessions, id)
+		}
+	}
+}
+
 func generateRandom() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		log.Fatalf("could not generate random bytes: %v", err)
+		slog.Error("could not generate random bytes", "err", err)
+		os.Exit(1)
 	}
 	return hex.EncodeToString(b)
 }
@@ -56,7 +75,12 @@ func getClient(r *http.Request) *spotify.Client {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	return sessions[cookie.Value]
+	entry, ok := sessions[cookie.Value]
+	if !ok || time.Now().After(entry.expiresAt) {
+		delete(sessions, cookie.Value)
+		return nil
+	}
+	return entry.client
 }
 
 func buildRedirectURI(r *http.Request) string {
@@ -91,17 +115,29 @@ func startWebServer(addr string) {
 		onlyLoved = true
 	}
 
+	cache := newResultsCache()
+
+	// Background goroutine to evict expired sessions.
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			cleanExpiredSessions()
+		}
+	}()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", serveIndex)
 	mux.HandleFunc("/login", handleLogin)
 	mux.HandleFunc("/logout", handleLogout)
 	mux.HandleFunc("/callback", handleCallback)
 	mux.HandleFunc("/api/config", serveConfig)
-	mux.HandleFunc("/api/songs", makeSongsHandler(onlyLoved))
+	mux.HandleFunc("/api/songs", makeSongsHandler(onlyLoved, cache))
 
-	log.Printf("Web UI running at http://127.0.0.1%s", addr)
+	slog.Info("Web UI running", "addr", "http://127.0.0.1"+addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatalf("server error: %v", err)
+		slog.Error("server error", "err", err)
+		os.Exit(1)
 	}
 }
 
@@ -147,7 +183,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 	tok, err := auth.Token(r.Context(), state, r)
 	if err != nil {
 		http.Error(w, "could not get token", http.StatusForbidden)
-		log.Printf("token error: %v", err)
+		slog.Error("token error", "err", err)
 		return
 	}
 
@@ -156,7 +192,10 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := generateRandom()
 	mu.Lock()
-	sessions[sessionID] = client
+	sessions[sessionID] = &sessionEntry{
+		client:    client,
+		expiresAt: time.Now().Add(time.Hour),
+	}
 	mu.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
@@ -180,18 +219,80 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write(indexHTML)
 }
 
-// serveConfig returns UI configuration (start/end year) so the frontend
-// does not need hard-coded values.
+// serveConfig returns UI configuration so the frontend does not need
+// hard-coded values. START_YEAR can be set via the environment variable
+// of the same name; it defaults to 2015.
 func serveConfig(w http.ResponseWriter, r *http.Request) {
 	type config struct {
 		StartYear int `json:"startYear"`
 		EndYear   int `json:"endYear"`
 	}
+
+	startYear := 2015
+	if s := os.Getenv("START_YEAR"); s != "" {
+		if y, err := strconv.Atoi(s); err == nil && y > 1900 && y <= time.Now().Year() {
+			startYear = y
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config{StartYear: 2015, EndYear: time.Now().Year()})
+	json.NewEncoder(w).Encode(config{StartYear: startYear, EndYear: time.Now().Year()})
 }
 
-func makeSongsHandler(onlyLoved bool) http.HandlerFunc {
+// resultsCache is a simple TTL-based in-memory cache for /api/songs results,
+// keyed by "<userID>:<year>". This avoids repeated full Spotify API scans when
+// a user clicks the same year button multiple times.
+type cacheEntry struct {
+	tracks    []TrackInfo
+	expiresAt time.Time
+}
+
+type resultsCache struct {
+	mu      sync.Mutex
+	entries map[string]*cacheEntry
+}
+
+func newResultsCache() *resultsCache {
+	c := &resultsCache{entries: make(map[string]*cacheEntry)}
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			c.purge()
+		}
+	}()
+	return c
+}
+
+func (c *resultsCache) get(key string) ([]TrackInfo, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	e, ok := c.entries[key]
+	if !ok || time.Now().After(e.expiresAt) {
+		delete(c.entries, key)
+		return nil, false
+	}
+	return e.tracks, true
+}
+
+func (c *resultsCache) set(key string, tracks []TrackInfo, ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[key] = &cacheEntry{tracks: tracks, expiresAt: time.Now().Add(ttl)}
+}
+
+func (c *resultsCache) purge() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := time.Now()
+	for k, e := range c.entries {
+		if now.After(e.expiresAt) {
+			delete(c.entries, k)
+		}
+	}
+}
+
+func makeSongsHandler(onlyLoved bool, cache *resultsCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		client := getClient(r)
 		if client == nil {
@@ -209,46 +310,38 @@ func makeSongsHandler(onlyLoved bool) http.HandlerFunc {
 			return
 		}
 
-		ctx := r.Context()
+		// Impose a per-request deadline so a slow Spotify API cannot block
+		// the handler goroutine indefinitely.
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+		defer cancel()
+
 		currentUser, err := client.CurrentUser(ctx)
 		if err != nil {
 			http.Error(w, "could not get current user", http.StatusInternalServerError)
-			log.Printf("could not get current user: %v", err)
+			slog.Error("could not get current user", "err", err)
 			return
 		}
-		playlists := getPlaylistsForYear(ctx, client, yr, currentUser.ID)
+
+		cacheKey := currentUser.ID + ":" + yr
+		if cached, ok := cache.get(cacheKey); ok {
+			slog.Info("serving songs from cache", "user", currentUser.ID, "year", yr)
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(cached); err != nil {
+				slog.Error("error encoding cached response", "err", err)
+			}
+			return
+		}
+
+		playlists := fetchPlaylistsForYear(ctx, client, yr, currentUser.ID, "")
 		tracks := getDiscoveredTracksWithDetails(ctx, client, playlists, yr, onlyLoved)
+
+		cache.set(cacheKey, tracks, 10*time.Minute)
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(tracks); err != nil {
-			log.Printf("error encoding response: %v", err)
+			slog.Error("error encoding response", "err", err)
 		}
 	}
-}
-
-// getPlaylistsForYear returns all playlists owned by the user whose name contains the given year.
-func getPlaylistsForYear(ctx context.Context, client *spotify.Client, yr string, userID string) []spotify.SimplePlaylist {
-	var result []spotify.SimplePlaylist
-	offset := 0
-	limit := 50
-
-	for p := 1; ; p++ {
-		page, err := client.CurrentUsersPlaylists(ctx, spotify.Limit(limit), spotify.Offset(offset))
-		if err != nil {
-			log.Printf("couldn't get playlists: %v", err)
-			break
-		}
-		for _, pl := range page.Playlists {
-			if strings.Contains(pl.Name, yr) && pl.Owner.ID == userID {
-				result = append(result, pl)
-			}
-		}
-		offset = p * limit
-		if page.Next == "" {
-			break
-		}
-	}
-	return result
 }
 
 // getDiscoveredTracksWithDetails scans playlists for tracks released in the given year
@@ -272,7 +365,7 @@ func getDiscoveredTracksWithDetails(ctx context.Context, client *spotify.Client,
 		for {
 			page, err := client.GetPlaylistTracks(ctx, playlist.ID, spotify.Limit(pageLimit), spotify.Offset(offset))
 			if err != nil {
-				log.Printf("couldn't get tracks for playlist %q: %v", playlist.Name, err)
+				slog.Error("couldn't get tracks for playlist", "playlist", playlist.Name, "err", err)
 				break
 			}
 
@@ -288,7 +381,7 @@ func getDiscoveredTracksWithDetails(ctx context.Context, client *spotify.Client,
 				}
 				isAdded, err := client.UserHasTracks(ctx, ids...)
 				if err != nil {
-					log.Printf("couldn't check library status: %v", err)
+					slog.Error("couldn't check library status", "err", err)
 					for _, p := range batch {
 						if !seen[p.id] {
 							seen[p.id] = true
@@ -312,7 +405,7 @@ func getDiscoveredTracksWithDetails(ctx context.Context, client *spotify.Client,
 			for _, track := range page.Tracks {
 				// Use HasPrefix so "2025" matches "2025-03-15" but not a date
 				// that merely contains "2025" as a substring elsewhere.
-				if !strings.HasPrefix(track.Track.Album.ReleaseDate, yr) {
+				if !trackIsFromYear(track, yr) {
 					continue
 				}
 

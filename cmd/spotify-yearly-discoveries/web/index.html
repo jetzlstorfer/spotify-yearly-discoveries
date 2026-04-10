@@ -161,8 +161,18 @@
     return d.innerHTML;
   }
 
+  function safeSpotifyUrl(url) {
+    // Only allow https:// URLs to prevent javascript: or data: injection.
+    if (typeof url === 'string' && url.startsWith('https://')) {
+      return url;
+    }
+    return '';
+  }
+
   function renderTracks(songs) {
-    trackList.innerHTML = songs.map((song, i) => `
+    trackList.innerHTML = songs.map((song, i) => {
+      const spotifyUrl = safeSpotifyUrl(song.spotifyUrl);
+      return `
       <div class="grid grid-cols-[1.5rem_44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/5 bg-spotify-panel/90 px-3 py-3 text-left transition duration-150 hover:border-white/10 hover:bg-spotify-panelHover sm:grid-cols-[2rem_52px_minmax(0,1fr)_auto] sm:gap-4 sm:px-4">
         <div class="text-right text-xs tabular-nums text-white/30 sm:text-sm">${i + 1}</div>
         ${song.albumArtUrl
@@ -175,12 +185,12 @@
         <div class="flex min-w-0 flex-col items-end gap-1 text-right">
           <span class="whitespace-nowrap text-xs tabular-nums text-spotify-muted sm:text-[0.82rem]">${fmtDuration(song.durationMs)}</span>
           <span class="hidden max-w-40 truncate text-[0.72rem] text-white/35 sm:inline">📋 ${esc(song.playlist)}</span>
-          ${song.spotifyUrl
-            ? `<a class="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-spotify-green/20 bg-spotify-green/10 px-3 py-1 text-[0.78rem] font-medium text-spotify-green transition hover:bg-spotify-green/15" href="${esc(song.spotifyUrl)}" target="_blank" rel="noopener"><span class="text-[0.7rem]">▶</span> Open</a>`
+          ${spotifyUrl
+            ? `<a class="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-spotify-green/20 bg-spotify-green/10 px-3 py-1 text-[0.78rem] font-medium text-spotify-green transition hover:bg-spotify-green/15" href="${esc(spotifyUrl)}" target="_blank" rel="noopener"><span class="text-[0.7rem]">▶</span> Open</a>`
             : ''}
         </div>
       </div>
-    `).join('');
+    `}).join('');
   }
 </script>
 </body>
