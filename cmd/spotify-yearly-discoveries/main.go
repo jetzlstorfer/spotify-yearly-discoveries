@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -31,89 +31,81 @@ func main() {
 		return
 	}
 
-	log.Println("Starting program...")
+	slog.Info("Starting program...")
 
 	if yearsPlaylistID == "" {
-		log.Fatalln("environment variable PLAYLIST_ID is empty, can not create playlist.")
+		slog.Error("environment variable PLAYLIST_ID is empty, can not create playlist")
+		os.Exit(1)
 	}
 
 	if year == "" {
-		log.Fatalln("environment variable YEAR_TO_CHECK is empty, can not proceed.")
+		slog.Error("environment variable YEAR_TO_CHECK is empty, can not proceed")
+		os.Exit(1)
 	}
 
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("could not open log file", "err", err)
+		os.Exit(1)
 	}
 	mw := io.MultiWriter(os.Stdout, logFile)
-	log.SetOutput(mw)
+	slog.SetDefault(slog.New(slog.NewTextHandler(mw, nil)))
+
+	// ONLY_LOVED_SONGS accepts standard boolean strings: true/false, 1/0, TRUE/FALSE.
+	// Defaults to true (only include tracks saved to the user's library) if unset or invalid.
+	onlyLoved, err := strconv.ParseBool(os.Getenv("ONLY_LOVED_SONGS"))
+	if err != nil {
+		onlyLoved = true
+	}
 
 	ctx := context.Background()
 	client, err := verifyLogin(ctx)
 	if err != nil {
-		log.Fatalln("could not verify login: " + err.Error())
+		slog.Error("could not verify login", "err", err)
+		os.Exit(1)
 	}
 
 	// get current user to filter owned playlists only
 	currentUser, err := client.CurrentUser(ctx)
 	if err != nil {
-		log.Fatalln("could not get current user: " + err.Error())
+		slog.Error("could not get current user", "err", err)
+		os.Exit(1)
 	}
 
-	// get all playlists that match the YEAR in the playlist title
-	playlistsToConsider := getPlaylistsMatchingCondition(ctx, client, year, currentUser.ID)
-	log.Println("Number of playlists with " + year + " in title: " + strconv.Itoa(len(playlistsToConsider)))
+	// get all playlists that match the YEAR in the playlist title, excluding the target playlist
+	playlistsToConsider := fetchPlaylistsForYear(ctx, client, year, currentUser.ID, yearsPlaylistID)
+	slog.Info("playlists found", "year", year, "count", len(playlistsToConsider))
 
-	yearlyDiscovery := getDiscoveredSongsFromPlaylists(ctx, client, playlistsToConsider)
+	yearlyDiscovery := getDiscoveredSongsFromPlaylists(ctx, client, playlistsToConsider, onlyLoved)
 
-	log.Println("Songs discovered: " + strconv.Itoa(len(yearlyDiscovery)))
+	slog.Info("songs discovered", "count", len(yearlyDiscovery))
 
 	// removing duplicate values
 	yearlyDiscovery = removeDuplicateValues(yearlyDiscovery)
-	log.Println("Songs discovered (unique): " + strconv.Itoa(len(yearlyDiscovery)))
+	slog.Info("songs discovered (unique)", "count", len(yearlyDiscovery))
 
 	// empty playlist
 	if err = client.ReplacePlaylistTracks(ctx, spotify.ID(yearsPlaylistID)); err != nil {
-		log.Fatalln("could not empty playlist: " + err.Error())
+		slog.Error("could not empty playlist", "err", err)
+		os.Exit(1)
 	}
 
 	// add tracks
-	log.Println("adding discovered songs to playlist...")
+	slog.Info("adding discovered songs to playlist...")
 	if err = addTracksToPlaylist(ctx, client, yearlyDiscovery); err != nil {
-		log.Fatalln("Could not add songs to playlist: " + err.Error())
+		slog.Error("could not add songs to playlist", "err", err)
+		os.Exit(1)
 	}
 
 	updatedPlaylist, err := client.GetPlaylist(ctx, spotify.ID(yearsPlaylistID))
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("could not get updated playlist", "err", err)
+		os.Exit(1)
 	}
-	log.Println(strconv.Itoa(int(updatedPlaylist.Tracks.Total)) + " songs added to playlist")
+	slog.Info("songs added to playlist", "count", updatedPlaylist.Tracks.Total)
 }
 
-func getPlaylistsMatchingCondition(ctx context.Context, client *spotify.Client, condition string, userID string) []spotify.SimplePlaylist {
-	var offset int
-	var limit int = 50
-	var playlistsToConsider []spotify.SimplePlaylist
-	for p := 1; ; p++ {
-		page, err := client.CurrentUsersPlaylists(ctx, spotify.Limit(limit), spotify.Offset(offset))
-		if err != nil {
-			log.Fatalf("couldn't get playlists: %v", err)
-		}
-
-		for _, playlist := range page.Playlists {
-			if strings.Contains(playlist.Name, condition) && playlist.ID != spotify.ID(yearsPlaylistID) && playlist.Owner.ID == userID {
-				playlistsToConsider = append(playlistsToConsider, playlist)
-			}
-		}
-		offset = p * limit
-		if page.Next == "" {
-			break
-		}
-	}
-	return playlistsToConsider
-}
-
-func getDiscoveredSongsFromPlaylists(ctx context.Context, client *spotify.Client, playlistsToConsider []spotify.SimplePlaylist) []spotify.ID {
+func getDiscoveredSongsFromPlaylists(ctx context.Context, client *spotify.Client, playlistsToConsider []spotify.SimplePlaylist, onlyLoved bool) []spotify.ID {
 	var yearlyDiscovery []spotify.ID
 	trackLimit := 50
 	pageLimit := 100
@@ -124,27 +116,33 @@ func getDiscoveredSongsFromPlaylists(ctx context.Context, client *spotify.Client
 		for {
 			page, err := client.GetPlaylistTracks(ctx, playlist.ID, spotify.Limit(pageLimit), spotify.Offset(offset))
 			if err != nil {
-				log.Fatalf("couldn't get tracks for playlist %s: %v", playlist.Name, err)
+				slog.Error("couldn't get tracks for playlist", "playlist", playlist.Name, "err", err)
+				os.Exit(1)
 			}
 
 			var tracksToCheck []spotify.ID
 			for _, track := range page.Tracks {
-				// check if track is from YEAR
-				if trackIsFromYear(track) {
-					log.Println("Song matching " + year + " found: " + track.Track.Artists[0].Name + " - " + track.Track.Name)
+				// check if track is from YEAR using HasPrefix so "2025" matches
+				// "2025-03-15" but not a year that merely contains "2025" elsewhere.
+				if trackIsFromYear(track, year) {
+					slog.Info("song matching year found",
+						"year", year,
+						"artist", track.Track.Artists[0].Name,
+						"track", track.Track.Name,
+					)
 
 					tracksToCheck = append(tracksToCheck, track.Track.ID)
-					log.Println("size of collection of tracks to check: " + strconv.Itoa(len(tracksToCheck)))
+					slog.Debug("tracks pending library check", "count", len(tracksToCheck))
 
-					// if trackLimit is reached, check all songs if they have been added to library and add them to list
+					// if trackLimit is reached, check all songs if they have been added to library
 					if len(tracksToCheck) >= trackLimit {
-						yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(ctx, client, tracksToCheck)...)
+						yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(ctx, client, tracksToCheck, onlyLoved)...)
 						tracksToCheck = nil
 					}
 				}
 			}
 			// flush remaining tracks before moving to the next page/playlist
-			yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(ctx, client, tracksToCheck)...)
+			yearlyDiscovery = append(yearlyDiscovery, getAddedTracks(ctx, client, tracksToCheck, onlyLoved)...)
 
 			offset += pageLimit
 			if page.Next == "" {
@@ -155,7 +153,7 @@ func getDiscoveredSongsFromPlaylists(ctx context.Context, client *spotify.Client
 	return yearlyDiscovery
 }
 
-// adding songs to playlist, 100 songs per API call
+// addTracksToPlaylist adds songs to the target playlist, 100 tracks per API call.
 func addTracksToPlaylist(ctx context.Context, client *spotify.Client, tracks []spotify.ID) error {
 	var limit = 100
 	for i := 0; i < len(tracks); i += limit {
@@ -167,17 +165,16 @@ func addTracksToPlaylist(ctx context.Context, client *spotify.Client, tracks []s
 	return nil
 }
 
-func trackIsFromYear(track spotify.PlaylistTrack) bool {
-	return strings.Contains(track.Track.Album.ReleaseDate, year)
+// trackIsFromYear reports whether the track's album was released in yr.
+// It uses HasPrefix so "2025" matches "2025-03-15" but not, say, "12025".
+func trackIsFromYear(track spotify.PlaylistTrack, yr string) bool {
+	return strings.HasPrefix(track.Track.Album.ReleaseDate, yr)
 }
 
 func removeDuplicateValues(slice []spotify.ID) []spotify.ID {
 	keys := make(map[spotify.ID]bool)
 	list := []spotify.ID{}
 
-	// If the key(values of the slice) is not equal
-	// to the already present value in new slice (list)
-	// then we append it. else we jump on another element.
 	for _, entry := range slice {
 		if _, value := keys[entry]; !value {
 			keys[entry] = true
@@ -187,27 +184,25 @@ func removeDuplicateValues(slice []spotify.ID) []spotify.ID {
 	return list
 }
 
-func getAddedTracks(ctx context.Context, client *spotify.Client, tracksToCheck []spotify.ID) []spotify.ID {
-	var yearlyDiscovery []spotify.ID
-	// check if song is added to users library
-	log.Println("size of collection of tracks to check that is added: " + strconv.Itoa(len(tracksToCheck)))
+// getAddedTracks filters tracksToCheck to only those saved to the user's
+// library (when onlyLoved is true). onlyLoved should be resolved once at
+// startup rather than re-reading the environment on every call.
+func getAddedTracks(ctx context.Context, client *spotify.Client, tracksToCheck []spotify.ID, onlyLoved bool) []spotify.ID {
 	if len(tracksToCheck) == 0 {
 		return nil
 	}
 
-	// ONLY_LOVED_SONGS accepts standard boolean strings: true/false, 1/0, TRUE/FALSE.
-	// Defaults to true (only include tracks saved to the user's library) if unset or invalid.
-	onlyLovedSongs, err := strconv.ParseBool(os.Getenv("ONLY_LOVED_SONGS"))
-	if err != nil {
-		onlyLovedSongs = true // default to only loved songs
-	}
+	slog.Debug("checking library status for tracks", "count", len(tracksToCheck))
 
 	isAdded, err := client.UserHasTracks(ctx, tracksToCheck...)
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("could not check library status", "err", err)
+		os.Exit(1)
 	}
+
+	var yearlyDiscovery []spotify.ID
 	for j, added := range isAdded {
-		if added || !onlyLovedSongs {
+		if added || !onlyLoved {
 			yearlyDiscovery = append(yearlyDiscovery, tracksToCheck[j])
 		}
 	}
@@ -226,8 +221,8 @@ func verifyLogin(ctx context.Context) (*spotify.Client, error) {
 	}
 
 	// Create a Spotify authenticator with the oauth2 token.
-	// If the token is expired, the oauth2 package will automatically refresh
-	// so the new token is checked against the old one to see if it should be updated.
+	// If the token is expired, the oauth2 package will automatically refresh;
+	// the new token is then saved so future runs use the refreshed credentials.
 	httpClient := spotifyauth.New().Client(ctx, tok)
 	client := spotify.New(httpClient)
 
@@ -236,7 +231,7 @@ func verifyLogin(ctx context.Context) (*spotify.Client, error) {
 		return nil, fmt.Errorf("could not retrieve token from client: %w", err)
 	}
 	if newToken.AccessToken != tok.AccessToken {
-		log.Println("got refreshed token, saving it")
+		slog.Info("got refreshed token, saving it")
 		tokenBytes, err := json.Marshal(newToken)
 		if err != nil {
 			return nil, fmt.Errorf("could not marshal token: %w", err)
@@ -246,12 +241,11 @@ func verifyLogin(ctx context.Context) (*spotify.Client, error) {
 		}
 	}
 
-	// use the client to make calls that require authorization
 	user, err := client.CurrentUser(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not get current user: %w", err)
 	}
-	log.Println("You are logged in as: ", user.ID)
+	slog.Info("logged in", "user", user.ID)
 
 	return client, nil
 }
