@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/jetzlstorfer/spotify-yearly-discoveries/internal/randutil"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 )
@@ -39,12 +38,7 @@ var (
 // OAuth CSRF state parameter. Using a static string would allow an attacker who
 // knows the value to forge a redirect and capture the user's token.
 func generateState() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		slog.Error("could not generate random state", "err", err)
-		os.Exit(1)
-	}
-	return hex.EncodeToString(b)
+	return randutil.HexString(16)
 }
 
 func main() {

@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	_ "embed"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -14,12 +12,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jetzlstorfer/spotify-yearly-discoveries/internal/randutil"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 )
 
 //go:embed web/index.html
 var indexHTML []byte
+
+//go:embed web/tailwind.min.css
+var tailwindCSS []byte
 
 // TrackInfo holds the song details returned to the UI.
 type TrackInfo struct {
@@ -60,12 +62,7 @@ func cleanExpiredSessions() {
 }
 
 func generateRandom() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		slog.Error("could not generate random bytes", "err", err)
-		os.Exit(1)
-	}
-	return hex.EncodeToString(b)
+	return randutil.HexString(16)
 }
 
 func getClient(r *http.Request) *spotify.Client {
@@ -133,11 +130,20 @@ func startWebServer(addr string) {
 	mux.HandleFunc("/callback", handleCallback)
 	mux.HandleFunc("/api/config", serveConfig)
 	mux.HandleFunc("/api/songs", makeSongsHandler(onlyLoved, cache))
+	mux.HandleFunc("/tailwind.min.css", serveTailwindCSS)
 
 	slog.Info("Web UI running", "addr", "http://127.0.0.1"+addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		slog.Error("server error", "err", err)
 		os.Exit(1)
+	}
+}
+
+func serveTailwindCSS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	if _, err := w.Write(tailwindCSS); err != nil {
+		slog.Error("error writing tailwind CSS response", "err", err)
 	}
 }
 
@@ -216,7 +222,9 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(indexHTML)
+	if _, err := w.Write(indexHTML); err != nil {
+		slog.Error("error writing index response", "err", err)
+	}
 }
 
 // serveConfig returns UI configuration so the frontend does not need
@@ -236,7 +244,9 @@ func serveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config{StartYear: startYear, EndYear: time.Now().Year()})
+	if err := json.NewEncoder(w).Encode(config{StartYear: startYear, EndYear: time.Now().Year()}); err != nil {
+		slog.Error("error encoding config response", "err", err)
+	}
 }
 
 // resultsCache is a simple TTL-based in-memory cache for /api/songs results,
@@ -357,7 +367,6 @@ func getDiscoveredTracksWithDetails(ctx context.Context, client *spotify.Client,
 	}
 
 	const batchSize = 50
-	pageLimit := 100
 
 	for _, playlist := range playlists {
 		var offset int

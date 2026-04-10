@@ -47,7 +47,7 @@ YEAR_TO_CHECK=2025
 
 3. Open your playlist 🕺
     ```
-    make open-browser
+    make open-playlist
     ```
     If this command doesn't work, open the playlist manually in the browser or Spotify client.
 

@@ -4,27 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yearly Discoveries</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            spotify: {
-              green: '#1DB954',
-              black: '#121212',
-              panel: '#181818',
-              panelHover: '#282828',
-              muted: '#b3b3b3'
-            }
-          },
-          boxShadow: {
-            glow: '0 20px 60px rgba(29, 185, 84, 0.16)'
-          }
-        }
-      }
-    };
-  </script>
+  <link rel="stylesheet" href="/tailwind.min.css" />
 </head>
 <body class="min-h-screen bg-spotify-black text-white antialiased">
 
@@ -49,6 +29,17 @@
     <div class="text-sm text-spotify-muted sm:text-base">
       Found <strong id="resultCount" class="font-semibold text-white"></strong> songs released in <strong id="resultYear" class="font-semibold text-white"></strong>
     </div>
+    <div class="flex items-center gap-2 text-xs text-spotify-muted">
+      <span class="hidden sm:inline">Sort by:</span>
+      <select id="sortSelect" class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white transition hover:bg-white/15 focus:outline-none cursor-pointer">
+        <option value="artist">Artist</option>
+        <option value="title">Title</option>
+        <option value="album">Album</option>
+        <option value="duration">Duration</option>
+        <option value="release">Release date</option>
+        <option value="playlist">Playlist</option>
+      </select>
+    </div>
   </div>
   <div id="trackList" class="flex flex-col gap-2"></div>
 </main>
@@ -60,8 +51,10 @@
   const resultCount   = document.getElementById('resultCount');
   const resultYear    = document.getElementById('resultYear');
   const trackList     = document.getElementById('trackList');
+  const sortSelect    = document.getElementById('sortSelect');
 
-  let activeBtn = null;
+  let activeBtn  = null;
+  let currentSongs = [];
 
   const yearBtnBaseClasses = [
     'rounded-full',
@@ -138,14 +131,38 @@
         return;
       }
 
+      currentSongs = songs;
       resultCount.textContent = songs.length;
       resultYear.textContent  = year;
       resultsHeader.classList.remove('hidden');
       resultsHeader.classList.add('flex');
-      renderTracks(songs);
+      renderTracks(sortedSongs());
     } catch (err) {
       setStatus('Error: ' + err.message);
     }
+  }
+
+  sortSelect.addEventListener('change', () => {
+    if (currentSongs.length > 0) renderTracks(sortedSongs());
+  });
+
+  function sortedSongs() {
+    const key = sortSelect.value;
+    return [...currentSongs].sort((a, b) => {
+      let av, bv;
+      switch (key) {
+        case 'artist':   av = (a.artists[0] || '').toLowerCase(); bv = (b.artists[0] || '').toLowerCase(); break;
+        case 'title':    av = a.name.toLowerCase();               bv = b.name.toLowerCase();               break;
+        case 'album':    av = a.album.toLowerCase();              bv = b.album.toLowerCase();              break;
+        case 'duration': av = a.durationMs;                       bv = b.durationMs;                       break;
+        case 'release':  av = a.releaseDate;                      bv = b.releaseDate;                      break;
+        case 'playlist': av = a.playlist.toLowerCase();           bv = b.playlist.toLowerCase();           break;
+        default:         return 0;
+      }
+      if (av < bv) return -1;
+      if (av > bv) return  1;
+      return 0;
+    });
   }
 
   function fmtDuration(ms) {

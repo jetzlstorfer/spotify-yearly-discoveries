@@ -105,10 +105,11 @@ func main() {
 	slog.Info("songs added to playlist", "count", updatedPlaylist.Tracks.Total)
 }
 
+const pageLimit = 100
+
 func getDiscoveredSongsFromPlaylists(ctx context.Context, client *spotify.Client, playlistsToConsider []spotify.SimplePlaylist, onlyLoved bool) []spotify.ID {
 	var yearlyDiscovery []spotify.ID
 	trackLimit := 50
-	pageLimit := 100
 
 	for _, playlist := range playlistsToConsider {
 		var offset int
@@ -172,12 +173,12 @@ func trackIsFromYear(track spotify.PlaylistTrack, yr string) bool {
 }
 
 func removeDuplicateValues(slice []spotify.ID) []spotify.ID {
-	keys := make(map[spotify.ID]bool)
+	keys := make(map[spotify.ID]struct{})
 	list := []spotify.ID{}
 
 	for _, entry := range slice {
 		if _, value := keys[entry]; !value {
-			keys[entry] = true
+			keys[entry] = struct{}{}
 			list = append(list, entry)
 		}
 	}
