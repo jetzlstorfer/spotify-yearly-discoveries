@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -66,8 +65,7 @@ func TestServeConfig_StartYearEnv_Invalid(t *testing.T) {
 	// Non-numeric and out-of-range values should fall back to the default.
 	for _, bad := range []string{"not-a-year", "1800", "99999"} {
 		t.Run(bad, func(t *testing.T) {
-			os.Setenv("START_YEAR", bad)
-			defer os.Unsetenv("START_YEAR")
+			t.Setenv("START_YEAR", bad)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
 			w := httptest.NewRecorder()
@@ -76,7 +74,9 @@ func TestServeConfig_StartYearEnv_Invalid(t *testing.T) {
 			var cfg struct {
 				StartYear int `json:"startYear"`
 			}
-			json.NewDecoder(w.Result().Body).Decode(&cfg)
+			if err := json.NewDecoder(w.Result().Body).Decode(&cfg); err != nil {
+				t.Fatalf("failed to decode response body: %v", err)
+			}
 			if cfg.StartYear != 2015 {
 				t.Errorf("bad START_YEAR %q: startYear = %d, want 2015", bad, cfg.StartYear)
 			}

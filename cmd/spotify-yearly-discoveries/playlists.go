@@ -15,9 +15,8 @@ import (
 func fetchPlaylistsForYear(ctx context.Context, client *spotify.Client, yr, userID, excludeID string) []spotify.SimplePlaylist {
 	var result []spotify.SimplePlaylist
 	const limit = 50
-	offset := 0
 
-	for p := 1; ; p++ {
+	for offset := 0; ; offset += limit {
 		page, err := client.CurrentUsersPlaylists(ctx, spotify.Limit(limit), spotify.Offset(offset))
 		if err != nil {
 			slog.Error("couldn't get playlists", "err", err)
@@ -28,7 +27,6 @@ func fetchPlaylistsForYear(ctx context.Context, client *spotify.Client, yr, user
 				result = append(result, pl)
 			}
 		}
-		offset = p * limit
 		if page.Next == "" {
 			break
 		}

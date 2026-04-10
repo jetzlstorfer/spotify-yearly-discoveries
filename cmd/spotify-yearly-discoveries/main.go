@@ -91,7 +91,7 @@ func main() {
 	}
 
 	// add tracks
-	slog.Info("adding discovered songs to playlist...")
+	slog.Info("adding discovered songs to playlist")
 	if err = addTracksToPlaylist(ctx, client, yearlyDiscovery); err != nil {
 		slog.Error("could not add songs to playlist", "err", err)
 		os.Exit(1)

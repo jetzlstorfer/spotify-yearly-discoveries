@@ -119,7 +119,9 @@ func startWebServer(addr string) {
 
 	// Background goroutine to evict expired sessions.
 	go func() {
-		for range time.Tick(5 * time.Minute) {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
 			cleanExpiredSessions()
 		}
 	}()
@@ -253,7 +255,9 @@ type resultsCache struct {
 func newResultsCache() *resultsCache {
 	c := &resultsCache{entries: make(map[string]*cacheEntry)}
 	go func() {
-		for range time.Tick(5 * time.Minute) {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
 			c.purge()
 		}
 	}()
