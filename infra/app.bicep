@@ -27,7 +27,7 @@ param spotifyId string
 param spotifySecret string
 
 @description('Only include loved/saved songs')
-param onlyLovedSongs string = 'true'
+param onlyLovedSongs string = 'false'
 
 // ---------- Container App ----------
 
