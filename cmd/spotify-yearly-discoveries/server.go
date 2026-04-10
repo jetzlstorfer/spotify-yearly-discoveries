@@ -210,7 +210,13 @@ func makeSongsHandler(onlyLoved bool) http.HandlerFunc {
 		}
 
 		ctx := r.Context()
-		playlists := getPlaylistsForYear(ctx, client, yr)
+		currentUser, err := client.CurrentUser(ctx)
+		if err != nil {
+			http.Error(w, "could not get current user", http.StatusInternalServerError)
+			log.Printf("could not get current user: %v", err)
+			return
+		}
+		playlists := getPlaylistsForYear(ctx, client, yr, currentUser.ID)
 		tracks := getDiscoveredTracksWithDetails(ctx, client, playlists, yr, onlyLoved)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -220,8 +226,8 @@ func makeSongsHandler(onlyLoved bool) http.HandlerFunc {
 	}
 }
 
-// getPlaylistsForYear returns all user playlists whose name contains the given year.
-func getPlaylistsForYear(ctx context.Context, client *spotify.Client, yr string) []spotify.SimplePlaylist {
+// getPlaylistsForYear returns all playlists owned by the user whose name contains the given year.
+func getPlaylistsForYear(ctx context.Context, client *spotify.Client, yr string, userID string) []spotify.SimplePlaylist {
 	var result []spotify.SimplePlaylist
 	offset := 0
 	limit := 50
@@ -233,7 +239,7 @@ func getPlaylistsForYear(ctx context.Context, client *spotify.Client, yr string)
 			break
 		}
 		for _, pl := range page.Playlists {
-			if strings.Contains(pl.Name, yr) {
+			if strings.Contains(pl.Name, yr) && pl.Owner.ID == userID {
 				result = append(result, pl)
 			}
 		}
