@@ -29,8 +29,7 @@ SPOTIFY_SECRET=    # Spotify client secret
 PLAYLIST_ID=       # target playlist ID, e.g. 4AJnjP36kH39gQhgZFL8Ff
 TOKEN_FILE=mytoken.txt
 LOG_FILE=log.txt
-ONLY_LOVED_SONGS=true  # set to false to include tracks not saved to your library
-YEAR_TO_CHECK=2025
+ONLY_LOVED_SONGS=true  # set to false to include tracks not saved to your libraryYEAR_TO_CHECK=2025
 ```
 
 ## Run it (CLI / batch mode)
@@ -47,7 +46,7 @@ YEAR_TO_CHECK=2025
 
 3. Open your playlist 🕺
     ```
-    make open-browser
+    make open-playlist
     ```
     If this command doesn't work, open the playlist manually in the browser or Spotify client.
 
