@@ -5,6 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yearly Discoveries</title>
   <link rel="stylesheet" href="/tailwind.min.css" />
+  <style>
+    #yearBar {
+      overflow-x: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    #yearBar::-webkit-scrollbar {
+      display: none;
+    }
+    #yearBar > * {
+      flex-shrink: 0;
+    }
+    @media (min-width: 640px) {
+      #yearBar {
+        flex-wrap: wrap;
+        justify-content: center;
+        overflow-x: visible;
+      }
+    }
+  </style>
 </head>
 <body class="min-h-screen bg-spotify-black text-white antialiased">
 
@@ -20,7 +40,7 @@
 </header>
 
 <div class="sticky top-0 z-10 border-y border-white/10 bg-black/35 backdrop-blur-xl">
-  <div id="yearBar" class="mx-auto flex max-w-6xl gap-3 overflow-x-auto px-4 py-5 sm:flex-wrap sm:justify-center sm:px-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"></div>
+  <div id="yearBar" class="mx-auto flex max-w-6xl gap-3 px-4 py-5 sm:px-6"></div>
 </div>
 
 <main class="mx-auto max-w-5xl px-4 py-10 sm:px-6">
