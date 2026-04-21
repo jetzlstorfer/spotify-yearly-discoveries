@@ -286,6 +286,9 @@ func (c *resultsCache) get(key string) ([]TrackInfo, bool) {
 }
 
 func (c *resultsCache) set(key string, tracks []TrackInfo, ttl time.Duration) {
+	if len(tracks) == 0 {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries[key] = &cacheEntry{tracks: tracks, expiresAt: time.Now().Add(ttl)}
