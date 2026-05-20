@@ -162,6 +162,12 @@ func TestResultsCache(t *testing.T) {
 	if _, ok := c.get("user:2023"); ok {
 		t.Error("expected expired entry to be a cache miss")
 	}
+
+	// Empty slice should not be stored (simulates no discoveries found)
+	c.set("user:2026", []TrackInfo{}, time.Minute)
+	if _, ok := c.get("user:2026"); ok {
+		t.Error("expected empty tracks to not be cached")
+	}
 }
 
 func TestCleanExpiredSessions(t *testing.T) {
