@@ -115,24 +115,24 @@ func getDiscoveredSongsFromPlaylists(ctx context.Context, client *spotify.Client
 		var offset int
 
 		for {
-			page, err := client.GetPlaylistTracks(ctx, playlist.ID, spotify.Limit(pageLimit), spotify.Offset(offset))
+			page, err := client.GetPlaylistItems(ctx, playlist.ID, spotify.Limit(pageLimit), spotify.Offset(offset))
 			if err != nil {
 				slog.Error("couldn't get tracks for playlist", "playlist", playlist.Name, "err", err)
 				os.Exit(1)
 			}
 
 			var tracksToCheck []spotify.ID
-			for _, track := range page.Tracks {
+			for _, item := range page.Items {
 				// check if track is from YEAR using HasPrefix so "2025" matches
 				// "2025-03-15" but not a year that merely contains "2025" elsewhere.
-				if trackIsFromYear(track, year) {
+				if trackIsFromYear(item, year) {
 					slog.Info("song matching year found",
 						"year", year,
-						"artist", track.Track.Artists[0].Name,
-						"track", track.Track.Name,
+						"artist", item.Track.Track.Artists[0].Name,
+						"track", item.Track.Track.Name,
 					)
 
-					tracksToCheck = append(tracksToCheck, track.Track.ID)
+					tracksToCheck = append(tracksToCheck, item.Track.Track.ID)
 					slog.Debug("tracks pending library check", "count", len(tracksToCheck))
 
 					// if trackLimit is reached, check all songs if they have been added to library
@@ -168,8 +168,12 @@ func addTracksToPlaylist(ctx context.Context, client *spotify.Client, tracks []s
 
 // trackIsFromYear reports whether the track's album was released in yr.
 // It uses HasPrefix so "2025" matches "2025-03-15" but not, say, "12025".
-func trackIsFromYear(track spotify.PlaylistTrack, yr string) bool {
-	return strings.HasPrefix(track.Track.Album.ReleaseDate, yr)
+// Returns false for non-track items (e.g. episodes) where Track.Track is nil.
+func trackIsFromYear(item spotify.PlaylistItem, yr string) bool {
+	if item.Track.Track == nil {
+		return false
+	}
+	return strings.HasPrefix(item.Track.Track.Album.ReleaseDate, yr)
 }
 
 func removeDuplicateValues(slice []spotify.ID) []spotify.ID {

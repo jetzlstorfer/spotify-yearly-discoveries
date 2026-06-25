@@ -89,19 +89,28 @@ func TestTrackIsFromYear(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			track := spotify.PlaylistTrack{
-				Track: spotify.FullTrack{
-					SimpleTrack: spotify.SimpleTrack{},
-					Album: spotify.SimpleAlbum{
-						ReleaseDate: tt.releaseDate,
+			item := spotify.PlaylistItem{
+				Track: spotify.PlaylistItemTrack{
+					Track: &spotify.FullTrack{
+						SimpleTrack: spotify.SimpleTrack{},
+						Album: spotify.SimpleAlbum{
+							ReleaseDate: tt.releaseDate,
+						},
 					},
 				},
 			}
-			got := trackIsFromYear(track, tt.year)
+			got := trackIsFromYear(item, tt.year)
 			if got != tt.want {
 				t.Errorf("trackIsFromYear(%q, year=%q) = %v, want %v",
 					tt.releaseDate, tt.year, got, tt.want)
 			}
 		})
 	}
+
+	t.Run("nil track (episode)", func(t *testing.T) {
+		item := spotify.PlaylistItem{}
+		if trackIsFromYear(item, "2024") {
+			t.Error("expected false for nil track")
+		}
+	})
 }

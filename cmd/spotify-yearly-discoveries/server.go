@@ -375,7 +375,7 @@ func getDiscoveredTracksWithDetails(ctx context.Context, client *spotify.Client,
 		var offset int
 
 		for {
-			page, err := client.GetPlaylistTracks(ctx, playlist.ID, spotify.Limit(pageLimit), spotify.Offset(offset))
+			page, err := client.GetPlaylistItems(ctx, playlist.ID, spotify.Limit(pageLimit), spotify.Offset(offset))
 			if err != nil {
 				slog.Error("couldn't get tracks for playlist", "playlist", playlist.Name, "err", err)
 				break
@@ -414,36 +414,36 @@ func getDiscoveredTracksWithDetails(ctx context.Context, client *spotify.Client,
 				batch = nil
 			}
 
-			for _, track := range page.Tracks {
+			for _, item := range page.Items {
 				// Use HasPrefix so "2025" matches "2025-03-15" but not a date
 				// that merely contains "2025" as a substring elsewhere.
-				if !trackIsFromYear(track, yr) {
+				if !trackIsFromYear(item, yr) {
 					continue
 				}
 
-				artists := make([]string, len(track.Track.Artists))
-				for i, a := range track.Track.Artists {
+				artists := make([]string, len(item.Track.Track.Artists))
+				for i, a := range item.Track.Track.Artists {
 					artists[i] = a.Name
 				}
 
 				artURL := ""
-				if len(track.Track.Album.Images) > 0 {
-					artURL = track.Track.Album.Images[0].URL
+				if len(item.Track.Track.Album.Images) > 0 {
+					artURL = item.Track.Track.Album.Images[0].URL
 				}
 
 				info := TrackInfo{
-					ID:          string(track.Track.ID),
-					Name:        track.Track.Name,
+					ID:          string(item.Track.Track.ID),
+					Name:        item.Track.Track.Name,
 					Artists:     artists,
-					Album:       track.Track.Album.Name,
-					ReleaseDate: track.Track.Album.ReleaseDate,
+					Album:       item.Track.Track.Album.Name,
+					ReleaseDate: item.Track.Track.Album.ReleaseDate,
 					AlbumArtURL: artURL,
-					SpotifyURL:  track.Track.ExternalURLs["spotify"],
-					DurationMs:  int(track.Track.Duration),
+					SpotifyURL:  item.Track.Track.ExternalURLs["spotify"],
+					DurationMs:  int(item.Track.Track.Duration),
 					Playlist:    playlist.Name,
 				}
 
-				batch = append(batch, pending{id: track.Track.ID, info: info})
+				batch = append(batch, pending{id: item.Track.Track.ID, info: info})
 				if len(batch) >= batchSize {
 					flush()
 				}
