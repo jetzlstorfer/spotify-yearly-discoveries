@@ -92,9 +92,11 @@ func buildRedirectURI(r *http.Request) string {
 	if uri := os.Getenv("REDIRECT_URI"); uri != "" {
 		return uri
 	}
-	scheme := "http"
-	if requestUsesHTTPS(r) {
-		scheme = "https"
+	scheme := "https"
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	} else if r.TLS == nil {
+		scheme = "http"
 	}
 	return fmt.Sprintf("%s://%s/callback", scheme, r.Host)
 }

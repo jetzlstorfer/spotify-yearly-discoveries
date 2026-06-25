@@ -131,9 +131,10 @@
 
   async function buildError(res) {
     const contentType = res.headers.get('content-type') || '';
+    const text = await res.text();
     if (contentType.includes('application/json')) {
       try {
-        const payload = await res.json();
+        const payload = JSON.parse(text);
         if (payload && typeof payload === 'object') {
           return {
             status: payload.status || res.status,
@@ -145,10 +146,9 @@
       } catch (_) {}
     }
 
-    const text = (await res.text()).trim();
     return {
       status: res.status,
-      message: text || `Request failed with HTTP ${res.status}.`
+      message: text.trim() || `Request failed with HTTP ${res.status}.`
     };
   }
 
