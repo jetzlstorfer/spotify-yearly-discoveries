@@ -92,13 +92,18 @@ func buildRedirectURI(r *http.Request) string {
 	if uri := os.Getenv("REDIRECT_URI"); uri != "" {
 		return uri
 	}
-	scheme := "https"
-	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
-		scheme = proto
-	} else if r.TLS == nil {
-		scheme = "http"
+	scheme := "http"
+	if requestUsesHTTPS(r) {
+		scheme = "https"
 	}
 	return fmt.Sprintf("%s://%s/callback", scheme, r.Host)
+}
+
+func requestUsesHTTPS(r *http.Request) bool {
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		return proto == "https"
+	}
+	return r.TLS != nil
 }
 
 func newAuthenticator(r *http.Request) *spotifyauth.Authenticator {
@@ -161,13 +166,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		delete(sessions, cookie.Value)
 		mu.Unlock()
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		MaxAge:   -1,
-	})
+	clearSessionCookie(w, r)
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
@@ -217,6 +216,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		Value:    sessionID,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   requestUsesHTTPS(r),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   3600,
 	})
@@ -270,12 +270,15 @@ func writeAPIError(w http.ResponseWriter, status int, code, message, suggestion 
 	}
 }
 
-func clearSessionCookie(w http.ResponseWriter) {
+// clearSessionCookie removes the browser session cookie so the next request
+// must complete the Spotify login flow again.
+func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   requestUsesHTTPS(r),
 		MaxAge:   -1,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -341,7 +344,7 @@ func makeSongsHandler(onlyLoved bool, cache *resultsCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		client := getClient(r)
 		if client == nil {
-			clearSessionCookie(w)
+			clearSessionCookie(w, r)
 			writeAPIError(
 				w,
 				http.StatusUnauthorized,
@@ -383,7 +386,7 @@ func makeSongsHandler(onlyLoved bool, cache *resultsCache) http.HandlerFunc {
 		if err != nil {
 			var spotifyErr spotify.Error
 			if errors.As(err, &spotifyErr) && spotifyErr.Status == http.StatusUnauthorized {
-				clearSessionCookie(w)
+				clearSessionCookie(w, r)
 				writeAPIError(
 					w,
 					http.StatusUnauthorized,

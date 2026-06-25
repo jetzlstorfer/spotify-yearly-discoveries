@@ -114,9 +114,7 @@
   function setErrorStatus(error) {
     const statusCode = Number(error?.status) || 0;
     const message = error?.message || `Request failed with HTTP ${statusCode || 'error'}.`;
-    const suggestion = error?.suggestion || (statusCode === 401
-      ? 'Log in again to refresh your Spotify session.'
-      : 'Please try again.');
+    const suggestion = error?.suggestion || 'Please try again.';
     const showLoginLink = statusCode === 401 || error?.code === 'unauthorized' || error?.code === 'spotify_session_expired';
 
     statusArea.className = `${statusAreaBaseClass} border-red-500/30 text-red-100`;
