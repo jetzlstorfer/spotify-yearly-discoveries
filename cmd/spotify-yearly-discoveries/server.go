@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -34,6 +35,13 @@ type TrackInfo struct {
 	SpotifyURL  string   `json:"spotifyUrl"`
 	DurationMs  int      `json:"durationMs"`
 	Playlist    string   `json:"playlist"`
+}
+
+type apiErrorResponse struct {
+	Status     int    `json:"status"`
+	Code       string `json:"code"`
+	Message    string `json:"message"`
+	Suggestion string `json:"suggestion,omitempty"`
 }
 
 // sessionEntry holds a Spotify client together with its expiry time so that
@@ -249,6 +257,30 @@ func serveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func writeAPIError(w http.ResponseWriter, status int, code, message, suggestion string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(apiErrorResponse{
+		Status:     status,
+		Code:       code,
+		Message:    message,
+		Suggestion: suggestion,
+	}); err != nil {
+		slog.Error("error encoding API error response", "err", err)
+	}
+}
+
+func clearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 // resultsCache is a simple TTL-based in-memory cache for /api/songs results,
 // keyed by "<userID>:<year>". This avoids repeated full Spotify API scans when
 // a user clicks the same year button multiple times.
@@ -309,17 +341,36 @@ func makeSongsHandler(onlyLoved bool, cache *resultsCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		client := getClient(r)
 		if client == nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			clearSessionCookie(w)
+			writeAPIError(
+				w,
+				http.StatusUnauthorized,
+				"unauthorized",
+				"Your Spotify session is missing or has expired.",
+				"Log in again and retry loading the year.",
+			)
 			return
 		}
 
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeAPIError(
+				w,
+				http.StatusMethodNotAllowed,
+				"method_not_allowed",
+				"This endpoint only supports GET requests.",
+				"Reload the page and try again from the year buttons.",
+			)
 			return
 		}
 		yr := r.URL.Query().Get("year")
 		if yr == "" {
-			http.Error(w, "year parameter is required", http.StatusBadRequest)
+			writeAPIError(
+				w,
+				http.StatusBadRequest,
+				"missing_year",
+				"The year parameter is required.",
+				"Choose a year in the UI and try again.",
+			)
 			return
 		}
 
@@ -330,7 +381,27 @@ func makeSongsHandler(onlyLoved bool, cache *resultsCache) http.HandlerFunc {
 
 		currentUser, err := client.CurrentUser(ctx)
 		if err != nil {
-			http.Error(w, "could not get current user", http.StatusInternalServerError)
+			var spotifyErr spotify.Error
+			if errors.As(err, &spotifyErr) && spotifyErr.Status == http.StatusUnauthorized {
+				clearSessionCookie(w)
+				writeAPIError(
+					w,
+					http.StatusUnauthorized,
+					"spotify_session_expired",
+					"Spotify rejected the saved session with HTTP 401 Unauthorized.",
+					"Log in again to refresh the Spotify access token, then retry.",
+				)
+				slog.Warn("spotify session expired", "status", spotifyErr.Status, "err", err)
+				return
+			}
+
+			writeAPIError(
+				w,
+				http.StatusInternalServerError,
+				"spotify_user_lookup_failed",
+				"Could not load your Spotify account details.",
+				"Try again in a moment. If it keeps failing, check the server logs and Spotify app configuration.",
+			)
 			slog.Error("could not get current user", "err", err)
 			return
 		}

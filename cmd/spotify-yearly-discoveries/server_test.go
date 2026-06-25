@@ -109,6 +109,36 @@ func TestMakeSongsHandler_NoSession(t *testing.T) {
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected status 401 for missing session, got %d", w.Code)
 	}
+
+	if ct := w.Result().Header.Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
+	}
+
+	var resp apiErrorResponse
+	if err := json.NewDecoder(w.Result().Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+
+	if resp.Code != "unauthorized" {
+		t.Errorf("code = %q, want %q", resp.Code, "unauthorized")
+	}
+	if resp.Status != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", resp.Status, http.StatusUnauthorized)
+	}
+	if resp.Message == "" {
+		t.Error("expected non-empty error message")
+	}
+
+	foundExpiredSessionCookie := false
+	for _, cookie := range w.Result().Cookies() {
+		if cookie.Name == "session" && cookie.MaxAge == -1 {
+			foundExpiredSessionCookie = true
+			break
+		}
+	}
+	if !foundExpiredSessionCookie {
+		t.Error("expected session cookie to be cleared")
+	}
 }
 
 func TestMakeSongsHandler_MethodNotAllowed(t *testing.T) {
@@ -130,6 +160,47 @@ func TestMakeSongsHandler_MethodNotAllowed(t *testing.T) {
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf("expected status 405 for POST, got %d", w.Code)
+	}
+
+	var resp apiErrorResponse
+	if err := json.NewDecoder(w.Result().Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	if resp.Code != "method_not_allowed" {
+		t.Errorf("code = %q, want %q", resp.Code, "method_not_allowed")
+	}
+
+	mu.Lock()
+	delete(sessions, sessionID)
+	mu.Unlock()
+}
+
+func TestMakeSongsHandler_MissingYear(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/songs", nil)
+	w := httptest.NewRecorder()
+
+	sessionID := generateRandom()
+	mu.Lock()
+	sessions[sessionID] = &sessionEntry{
+		client:    spotify.New(http.DefaultClient),
+		expiresAt: time.Now().Add(time.Hour),
+	}
+	mu.Unlock()
+	req.AddCookie(&http.Cookie{Name: "session", Value: sessionID})
+
+	handler := makeSongsHandler(true, newResultsCache())
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for missing year, got %d", w.Code)
+	}
+
+	var resp apiErrorResponse
+	if err := json.NewDecoder(w.Result().Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	if resp.Code != "missing_year" {
+		t.Errorf("code = %q, want %q", resp.Code, "missing_year")
 	}
 
 	mu.Lock()
