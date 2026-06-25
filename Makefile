@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: token run build serve open-browser
+.PHONY: token run build serve open-browser lint
 
 token:
 	go run ./cmd/get-token
@@ -17,3 +17,6 @@ serve:
 
 open-playlist:
 	python3 -m webbrowser https://open.spotify.com/playlist/$(PLAYLIST_ID)
+
+lint:
+	golangci-lint run ./...
