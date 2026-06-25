@@ -52,12 +52,16 @@
     <div class="flex items-center gap-2 text-xs text-spotify-muted">
       <span class="hidden sm:inline">Sort by:</span>
       <select id="sortSelect" class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white transition hover:bg-white/15 focus:outline-none cursor-pointer">
+        <option value="release" selected>Release date</option>
         <option value="artist">Artist</option>
         <option value="title">Title</option>
         <option value="album">Album</option>
         <option value="duration">Duration</option>
-        <option value="release">Release date</option>
         <option value="playlist">Playlist</option>
+      </select>
+      <select id="sortDirectionSelect" class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white transition hover:bg-white/15 focus:outline-none cursor-pointer" aria-label="Sort direction">
+        <option value="desc" selected>Descending</option>
+        <option value="asc">Ascending</option>
       </select>
     </div>
   </div>
@@ -72,6 +76,9 @@
   const resultYear    = document.getElementById('resultYear');
   const trackList     = document.getElementById('trackList');
   const sortSelect    = document.getElementById('sortSelect');
+  const sortDirectionSelect = document.getElementById('sortDirectionSelect');
+  const SORT_ASCENDING = 1;
+  const SORT_DESCENDING = -1;
 
   let activeBtn  = null;
   let currentSongs = [];
@@ -166,8 +173,13 @@
     if (currentSongs.length > 0) renderTracks(sortedSongs());
   });
 
+  sortDirectionSelect.addEventListener('change', () => {
+    if (currentSongs.length > 0) renderTracks(sortedSongs());
+  });
+
   function sortedSongs() {
     const key = sortSelect.value;
+    const direction = sortDirectionSelect.value === 'asc' ? SORT_ASCENDING : SORT_DESCENDING;
     return [...currentSongs].sort((a, b) => {
       let av, bv;
       switch (key) {
@@ -179,8 +191,8 @@
         case 'playlist': av = a.playlist.toLowerCase();           bv = b.playlist.toLowerCase();           break;
         default:         return 0;
       }
-      if (av < bv) return -1;
-      if (av > bv) return  1;
+      if (av < bv) return -1 * direction;
+      if (av > bv) return  1 * direction;
       return 0;
     });
   }
