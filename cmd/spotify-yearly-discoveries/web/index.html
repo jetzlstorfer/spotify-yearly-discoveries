@@ -105,16 +105,58 @@
     'shadow-lg',
     'shadow-spotify-green/20'
   ];
+  const statusAreaBaseClass = 'rounded-[1.5rem] border bg-white/[0.03] px-6 py-20 text-center text-base leading-7';
 
   function setStatus(message, loading = false) {
     statusArea.className = loading
-      ? 'flex items-center justify-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-6 py-20 text-center text-base leading-7 text-spotify-muted'
-      : 'rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.03] px-6 py-20 text-center text-base leading-7 text-spotify-muted';
+      ? `flex items-center justify-center gap-3 ${statusAreaBaseClass} border-white/10 text-spotify-muted`
+      : `${statusAreaBaseClass} border-dashed border-white/10 text-spotify-muted`;
 
     statusArea.innerHTML = loading
       ? `<div class="h-6 w-6 animate-spin rounded-full border-[3px] border-spotify-green border-t-transparent"></div><span>${esc(message)}</span>`
       : esc(message);
     statusArea.style.display = 'block';
+  }
+
+  function setErrorStatus(error) {
+    const statusCode = Number(error?.status) || 0;
+    const message = error?.message || `Request failed with HTTP ${statusCode || 'error'}.`;
+    const suggestion = error?.suggestion || 'Please try again.';
+    const showLoginLink = statusCode === 401 || error?.code === 'unauthorized' || error?.code === 'spotify_session_expired';
+
+    statusArea.className = `${statusAreaBaseClass} border-red-500/30 text-red-100`;
+    statusArea.innerHTML = `
+      <div class="mx-auto max-w-2xl space-y-3">
+        <div class="text-lg font-semibold text-white">Could not load discoveries</div>
+        <div>${esc(message)}</div>
+        <div class="text-sm text-red-100/80">${esc(suggestion)}</div>
+        ${statusCode ? `<div class="text-xs font-medium uppercase tracking-[0.2em] text-red-200/70">HTTP ${statusCode}</div>` : ''}
+        ${showLoginLink ? '<div><a class="inline-flex items-center rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white transition hover:border-white/40 hover:bg-white/10" href="/login">Log in again</a></div>' : ''}
+      </div>`;
+    statusArea.style.display = 'block';
+  }
+
+  async function buildError(res) {
+    const contentType = res.headers.get('content-type') || '';
+    const text = await res.text();
+    if (contentType.includes('application/json')) {
+      try {
+        const payload = JSON.parse(text);
+        if (payload && typeof payload === 'object') {
+          return {
+            status: payload.status || res.status,
+            code: payload.code,
+            message: payload.message,
+            suggestion: payload.suggestion
+          };
+        }
+      } catch (_) {}
+    }
+
+    return {
+      status: res.status,
+      message: text.trim() || `Request failed with HTTP ${res.status}.`
+    };
   }
 
   // Fetch year range from server so the UI stays in sync with backend config.
@@ -148,7 +190,7 @@
 
     try {
       const res   = await fetch('/api/songs?year=' + year);
-      if (!res.ok) throw new Error('Server returned ' + res.status);
+      if (!res.ok) throw await buildError(res);
       const songs = await res.json();
 
       statusArea.style.display = 'none';
@@ -165,7 +207,7 @@
       resultsHeader.classList.add('flex');
       renderTracks(sortedSongs());
     } catch (err) {
-      setStatus('Error: ' + err.message);
+      setErrorStatus(err || {});
     }
   }
 
