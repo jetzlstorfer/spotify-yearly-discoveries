@@ -6,6 +6,7 @@
 go build -o spotify-yearly-discoveries ./cmd/spotify-yearly-discoveries  # build main binary
 go test ./...                                                            # run all tests
 go test ./cmd/spotify-yearly-discoveries/ -run TestServeConfig           # run a single test
+make lint                                                                # run linters
 ```
 
 ## Architecture

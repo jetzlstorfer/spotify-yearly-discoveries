@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAQ - Yearly Discoveries</title>
+  <link rel="stylesheet" href="/tailwind.min.css" />
+  <style>
+    :root {
+      --green: #1db954;
+      --muted: #a7a7a7;
+    }
+
+    /* Header */
+    .faq-header {
+      padding: 2.5rem 1.5rem 2rem;
+      text-align: center;
+    }
+    .faq-header-card {
+      position: relative;
+      margin: 0 auto;
+      max-width: 64rem;
+      border-radius: 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2rem 1.5rem;
+      box-shadow: 0 0 60px rgba(29, 185, 84, 0.15);
+      backdrop-filter: blur(12px);
+    }
+    .faq-back {
+      position: absolute;
+      right: 1.5rem;
+      top: 1.5rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 0.375rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .faq-back:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      color: #fff;
+    }
+    .faq-eyebrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.35em;
+      color: rgba(29, 185, 84, 0.75);
+    }
+    .faq-title {
+      margin-top: 1rem;
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--green);
+    }
+    .faq-subtitle {
+      margin: 0.75rem auto 0;
+      max-width: 36rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    /* List */
+    .faq-main {
+      margin: 0 auto;
+      max-width: 56rem;
+      padding: 3rem 1rem;
+    }
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Item */
+    .faq-item {
+      border-radius: 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 1.25rem 1.5rem;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .faq-item:hover {
+      border-color: rgba(29, 185, 84, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .faq-q {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      width: 100%;
+      border: none;
+      background: none;
+      text-align: left;
+      padding: 0;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: color 0.15s ease;
+    }
+    .faq-item:hover .faq-q {
+      color: var(--green);
+    }
+    .faq-toggle {
+      flex-shrink: 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--green);
+      transition: transform 0.3s ease;
+    }
+    .faq-item.open .faq-toggle {
+      transform: rotate(45deg);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease;
+    }
+    .faq-item.open .faq-answer {
+      max-height: 1500px;
+    }
+    .faq-body {
+      margin-top: 1.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+    .faq-body > * + * {
+      margin-top: 0.85rem;
+    }
+    .faq-body strong,
+    .faq-body .hl {
+      color: #fff;
+      font-weight: 600;
+    }
+    .faq-body ul,
+    .faq-body ol {
+      margin: 0.5rem 0 0;
+      padding-left: 1.25rem;
+      list-style-position: outside;
+    }
+    .faq-body ul { list-style-type: disc; }
+    .faq-body ol { list-style-type: decimal; }
+    .faq-body li + li {
+      margin-top: 0.4rem;
+    }
+    .faq-body a {
+      color: var(--green);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .faq-body a:hover {
+      text-decoration: underline;
+    }
+    .faq-body code {
+      background: rgba(0, 0, 0, 0.45);
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.35rem;
+      font-size: 0.8rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .faq-note {
+      font-size: 0.8rem;
+      color: rgba(167, 167, 167, 0.8);
+    }
+
+    .faq-subbox {
+      border-radius: 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 1rem;
+    }
+    .faq-subbox + .faq-subbox {
+      margin-top: 0.75rem;
+    }
+    .faq-subbox .label {
+      font-weight: 600;
+      color: var(--green);
+      margin-bottom: 0.25rem;
+    }
+    .faq-subbox p:last-child {
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .faq-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      border-radius: 0.6rem;
+      border: 1px solid rgba(29, 185, 84, 0.4);
+      background: rgba(29, 185, 84, 0.08);
+      padding: 0.7rem 1.25rem;
+      font-weight: 600;
+      color: var(--green) !important;
+      text-decoration: none !important;
+      transition: all 0.15s ease;
+    }
+    .faq-cta:hover {
+      background: rgba(29, 185, 84, 0.2);
+      border-color: rgba(29, 185, 84, 0.6);
+    }
+    .faq-cta svg {
+      width: 1.05rem;
+      height: 1.05rem;
+    }
+
+    /* Footer */
+    .faq-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
+      padding: 2rem 1rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .faq-footer a {
+      color: var(--green);
+      text-decoration: none;
+    }
+    .faq-footer a:hover {
+      color: rgba(29, 185, 84, 0.75);
+    }
+
+    @media (min-width: 640px) {
+      .faq-title { font-size: 3.5rem; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-spotify-black text-white antialiased">
+
+<div class="absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(circle_at_top,rgba(29,185,84,0.18),transparent_45%),linear-gradient(180deg,#1a1a2e_0%,#121212_72%)]"></div>
+
+<header class="faq-header">
+  <div class="faq-header-card">
+    <a href="/" class="faq-back">← Back</a>
+    <p class="faq-eyebrow">Help &amp; Information</p>
+    <h1 class="faq-title">❓ FAQ</h1>
+    <p class="faq-subtitle">Everything you need to know</p>
+  </div>
+</header>
+
+<main class="faq-main">
+  <div class="faq-list">
+
+    <!-- What is this? -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>What is Yearly Discoveries?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>Yearly Discoveries is a tool that helps you explore the songs you discovered in a specific year. It filters your Spotify playlists to show you songs that were <span class="hl">actually released</span> in that year—not songs that just became popular in that year.</p>
+          <p>For example, if a song was released in 2020 but received heavy airplay in 2023, it won't appear in your 2023 discoveries—it will appear in 2020.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Why does this exist? -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>Why was this created?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>Many "Best of 202X" lists highlight songs that were popular in that year, but not necessarily released in that year. This tool solves that problem by showing you which songs <span class="hl">you discovered</span> that were <span class="hl">actually from</span> a specific year.</p>
+          <p>It's great for creating annual playlists that truly represent the music released in that year, or for seeing how your musical taste evolved over time.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- How does it work? -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>How does it work?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p class="hl">Yearly Discoveries has two modes:</p>
+          <div>
+            <div class="faq-subbox">
+              <p class="label">🌐 Web Mode</p>
+              <p>Browse your yearly discoveries interactively in your browser. Filter by year, sort songs different ways, and explore without modifying your playlists.</p>
+            </div>
+            <div class="faq-subbox">
+              <p class="label">⚙️ Batch Mode</p>
+              <p>Automatically scan your playlists and populate a target playlist with songs from a specific year. This runs on a schedule or manually via CLI.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- How are songs identified? -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>How are songs identified as being from a year?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>We use Spotify's API to check the <span class="hl">release date</span> of each song. If a song's release date falls within the year you're browsing, it appears in your discoveries for that year.</p>
+          <p>For example:</p>
+          <ul>
+            <li>Song released January 15, 2023 → Appears in 2023</li>
+            <li>Song released December 31, 2023 → Appears in 2023</li>
+            <li>Song released January 1, 2024 → Appears in 2024</li>
+          </ul>
+          <p class="faq-note">We only use the release <em>year</em>, not the specific date within that year.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- What songs are shown? -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>What songs are included in my discoveries?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>The web app shows all songs from playlists in your account that match your filter settings. By default, it shows songs you've marked as favorites (❤️ in Spotify).</p>
+          <p>However, you can configure the batch mode to include all songs you've added, regardless of whether they're in your library.</p>
+          <p class="faq-note">The actual filtering depends on how you've configured batch mode—web mode respects those same settings when pulling data.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy and data -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>What data does this access and store?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>In web mode, the app accesses:</p>
+          <ul>
+            <li>Your playlists and the songs in them</li>
+            <li>Metadata about those songs (title, artist, release date, album art)</li>
+            <li>Your library status for those songs</li>
+          </ul>
+          <p><span class="hl">Data storage:</span> The web app stores session information in memory only—nothing is saved to a database. Once you log out or close the app, your session is cleared.</p>
+          <p><span class="hl">Spotify playlists:</span> In batch mode, the app can modify your playlists, but only if you explicitly configure it to do so.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Why does it ask for permissions? -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>Why does it ask for Spotify permissions?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>To show you your yearly discoveries, we need permission to:</p>
+          <ul>
+            <li><span class="hl">Read your playlists</span> — To find songs you've added</li>
+            <li><span class="hl">Read your library</span> — To see which songs you've marked as favorites</li>
+            <li><span class="hl">Modify playlists</span> — Only used in batch mode, if configured</li>
+          </ul>
+          <p>These permissions are requested by Spotify, not by us. We only use them to provide the functionality you've configured.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- How do I use batch mode? -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>How do I use batch mode?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>Batch mode runs from the command line and automatically populates a target playlist with your yearly discoveries. To use it:</p>
+          <ol>
+            <li>Create a <a href="https://developer.spotify.com/dashboard/applications" target="_blank">Spotify application</a> and get your client ID and secret</li>
+            <li>Create an empty playlist in Spotify to hold your discoveries</li>
+            <li>Configure environment variables (see the README on GitHub)</li>
+            <li>Run <code>make token</code> to get an OAuth token</li>
+            <li>Run <code>make run</code> to populate your playlist</li>
+          </ol>
+          <p>For detailed instructions, see the <a href="https://github.com/jetzlstorfer/spotify-yearly-discoveries" target="_blank">project README</a>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Source code and contribution -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>Where's the source code? Can I contribute?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>Yes! This project is open source on GitHub:</p>
+          <p>
+            <a href="https://github.com/jetzlstorfer/spotify-yearly-discoveries" target="_blank" class="faq-cta">
+              <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.868-.013-1.703-2.782.603-3.369-1.343-3.369-1.343-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.544 2.914 1.194.092-.929.35-1.544.637-1.898-2.228-.253-4.579-1.113-4.579-4.915 0-1.086.39-1.975 1.029-2.67-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0110 4.817c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.695 1.028 1.584 1.028 2.67 0 3.807-2.353 4.659-4.589 4.901.36.311.69.921.69 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.578.688.48C17.138 18.194 20 14.440 20 10.017 20 4.484 15.522 0 10 0z" clip-rule="evenodd"></path></svg>
+              View on GitHub
+            </a>
+          </p>
+          <p>The project welcomes contributions! You can:</p>
+          <ul>
+            <li>Report issues or suggest features</li>
+            <li>Submit pull requests with improvements</li>
+            <li>Help improve documentation</li>
+            <li>Test on different platforms</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Troubleshooting -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>I'm not seeing songs I expected. What's wrong?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>Here are some common reasons:</p>
+          <ul>
+            <li><span class="hl">Song is from a different year</span> — Check Spotify's release date for the song. It might be from a different year than you thought.</li>
+            <li><span class="hl">Song isn't in your library</span> — By default, we only show songs you've marked as favorites (❤️). If you've added the song to playlists but not your library, adjust your settings in batch mode.</li>
+            <li><span class="hl">Song isn't in a playlist</span> — The web app only shows songs from playlists in your account. Make sure the song is actually in one of your playlists.</li>
+            <li><span class="hl">Release date ambiguity</span> — Some songs have different release dates for the album vs. the single. Spotify uses the earliest release date.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Technical details -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>What technology does this use?</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>Yearly Discoveries is built with:</p>
+          <ul>
+            <li><span class="hl">Go</span> — The backend server and CLI tool</li>
+            <li><span class="hl">Spotify Web API</span> — For accessing your playlists and songs</li>
+            <li><span class="hl">OAuth 2.0</span> — For secure authentication</li>
+            <li><span class="hl">Tailwind CSS</span> — For the web UI styling</li>
+            <li><span class="hl">JavaScript</span> — For frontend interactivity</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact and support -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>I have a question or issue not listed here</span>
+        <span class="faq-toggle">+</span>
+      </button>
+      <div class="faq-answer">
+        <div class="faq-body">
+          <p>Great! Please open an issue on GitHub with details about what you're experiencing:</p>
+          <p>
+            <a href="https://github.com/jetzlstorfer/spotify-yearly-discoveries/issues" target="_blank" class="faq-cta">
+              <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.868-.013-1.703-2.782.603-3.369-1.343-3.369-1.343-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.544 2.914 1.194.092-.929.35-1.544.637-1.898-2.228-.253-4.579-1.113-4.579-4.915 0-1.086.39-1.975 1.029-2.67-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0110 4.817c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.695 1.028 1.584 1.028 2.67 0 3.807-2.353 4.659-4.589 4.901.36.311.69.921.69 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.578.688.48C17.138 18.194 20 14.440 20 10.017 20 4.484 15.522 0 10 0z" clip-rule="evenodd"></path></svg>
+              Open an Issue
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="faq-footer">
+  <p>Yearly Discoveries • <a href="https://github.com/jetzlstorfer/spotify-yearly-discoveries" target="_blank">Open Source on GitHub</a></p>
+</footer>
+
+</body>
+</html>

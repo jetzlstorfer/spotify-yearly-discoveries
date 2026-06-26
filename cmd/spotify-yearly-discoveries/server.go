@@ -21,6 +21,9 @@ import (
 //go:embed web/index.html
 var indexHTML []byte
 
+//go:embed web/faq.html
+var faqHTML []byte
+
 //go:embed web/tailwind.min.css
 var tailwindCSS []byte
 
@@ -140,6 +143,7 @@ func startWebServer(addr string) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", serveIndex)
+	mux.HandleFunc("/faq", serveFAQ)
 	mux.HandleFunc("/login", handleLogin)
 	mux.HandleFunc("/logout", handleLogout)
 	mux.HandleFunc("/callback", handleCallback)
@@ -234,6 +238,17 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if _, err := w.Write(indexHTML); err != nil {
 		slog.Error("error writing index response", "err", err)
+	}
+}
+
+func serveFAQ(w http.ResponseWriter, r *http.Request) {
+	if getClient(r) == nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, err := w.Write(faqHTML); err != nil {
+		slog.Error("error writing FAQ response", "err", err)
 	}
 }
 
