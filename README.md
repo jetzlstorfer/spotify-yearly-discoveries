@@ -18,7 +18,7 @@ Here are my playlists for [2022](https://open.spotify.com/playlist/4AJnjP36kH39g
 ## How to use it
 - Create a [Spotify application](https://developer.spotify.com/dashboard/applications) to receive a client ID and secret
 - Create a new (empty) playlist for the songs to be stored in
-- Have [Go](https://go.dev/) 1.21+ ready on your machine **or** use the provided [Docker](#docker) image
+- Have [Go](https://go.dev/) 1.27+ ready on your machine **or** use the provided [Docker](#docker) image
 - Adapt values in the `env` file and copy or rename it to `.env`
 
 ## Environment variables
